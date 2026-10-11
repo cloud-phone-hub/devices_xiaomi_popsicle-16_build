@@ -1,0 +1,88 @@
+# popsicle-16 云机主 init rc（原 lineage init.virtio.rc 改名而来）。
+#
+# 为什么改名：init 二阶段按 `init.${ro.hardware}.rc` 定位本文件，云机 ro.hardware 已由
+# vendor_boot 的 androidboot.hardware 定为 qcom（对齐真机，见 build-vendor-boot.py），
+# 故文件名必须是 init.qcom.rc，否则 mount_all --early/--late、块设备 symlink 等全部丢失。
+# 内容仍是云机定制（import /vendor/etc/init/hw/init.virt.rc 等），未取真机 gold 的
+# init.qcom.rc（那是 Qualcomm 全套：adsp/cdsp/modem/gpu 等服务，云机无对应硬件）。
+#
+# 真机对应：真机 /vendor/etc/init/hw/init.qcom.rc；真机 /system/etc/init/hw 下无同名
+# 文件（lineage 系统侧 init 目录无此名），故不存在双份冲突。云机侧本文件经内核
+# getname_flags 重定向（/vendor/etc -> /mnt/vendor/etc）命中 patch.img 内此件，
+# 官方 /vendor 下同名文件不再被读到。
+#
+# vdaN -> by-name 映射：lineage UTM 底盘（GPT 与 note13/pixel6 同一 UTM 布局约定；
+# 若 lineage-23 UTM 底盘新增 init_boot 等分区，仅 pack-roms 回写分区随之扩展，
+# 本映射不受影响——fstab 不引用 init_boot）。
+
+import /vendor/etc/init/hw/init.virt.rc
+
+on early-fs
+    symlink /dev/block/vda1 /dev/block/by-name/EFI
+    symlink /dev/block/vda3 /dev/block/by-name/misc
+
+on early-fs && property:ro.build.ab_update=false
+    symlink /dev/block/vda4 /dev/block/by-name/metadata
+    symlink /dev/block/vda5 /dev/block/by-name/cache
+    symlink /dev/block/vda6 /dev/block/by-name/boot
+    symlink /dev/block/vda7 /dev/block/by-name/recovery
+    symlink /dev/block/vda8 /dev/block/by-name/firmware
+    symlink /dev/block/vda9 /dev/block/by-name/persist
+
+on early-fs && property:ro.build.ab_update=true
+    symlink /dev/block/vda4 /dev/block/by-name/persist
+    symlink /dev/block/vda5 /dev/block/by-name/metadata
+    symlink /dev/block/vda6 /dev/block/by-name/firmware
+    symlink /dev/block/vda7 /dev/block/by-name/grub_boot_a
+    symlink /dev/block/vda8 /dev/block/by-name/grub_boot_b
+    symlink /dev/block/vda9 /dev/block/by-name/boot_a
+    symlink /dev/block/vda10 /dev/block/by-name/boot_b
+
+on fs
+    mkdir /mnt/vendor/EFI 0770 root root
+    mkdir /mnt/vendor/persist 0770 system system
+    mkdir /mnt/vendor/shared 0770 system system
+
+    # Mount everything that does not require fsck
+    mount_all --early
+
+on late-fs
+    # Mount RW partitions which need run fsck
+    mount_all --late
+
+# GPU
+on early-init
+    setprop ro.vendor.graphics.gpu ${ro.boot.gpu:-virtio_gpu}
+
+on init && property:ro.vendor.graphics.gpu=vkms
+    exec u:r:vendor_modprobe:s0 -- /vendor/bin/modprobe -a -d /vendor/lib/modules vkms.ko
+
+# Graphics
+on early-boot && property:ro.vendor.graphics.gpu=virtio_gpu
+    exec u:r:vendor_virtgpu_detect:s0 system graphics -- /vendor/bin/virtgpu_detect
+
+# Graphics (Mesa)
+on property:ro.vendor.graphics.gpu=virtio_gpu && property:ro.vendor.graphics=mesa
+    setprop ro.hardware.gralloc minigbm
+    setprop ro.hardware.vulkan virtio
+    setprop ro.opengles.version 196610
+
+on property:ro.vendor.graphics.gpu=virtio_gpu && property:ro.vendor.graphics=mesa_swrast
+    setprop ro.hardware.gralloc minigbm
+
+on property:ro.vendor.graphics.gpu=vkms && property:ro.vendor.graphics=mesa_swrast
+    setprop ro.hardware.gralloc minigbm
+
+# Serial logging
+service seriallogging /system/bin/logcat -b all -v threadtime -f /dev/hvc1 *:V
+    class main
+    user logd
+    group root logd
+    seclabel u:r:logpersist:s0
+    oneshot
+    disabled
+
+on early-boot
+    chown system logd /dev/hvc1
+    chmod 0660 /dev/hvc1
+    start seriallogging

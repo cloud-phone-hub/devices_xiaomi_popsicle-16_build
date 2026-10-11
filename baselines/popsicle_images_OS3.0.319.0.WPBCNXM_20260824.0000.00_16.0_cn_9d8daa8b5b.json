@@ -1,0 +1,1481 @@
+{
+  "schema": 2,
+  "build-id": "popsicle_images_OS3.0.319.0.WPBCNXM_20260824.0000.00_16.0_cn_9d8daa8b5b",
+  "comment": "popsicle-16（Xiaomi popsicle / SM8850 Kaanapali）OS3.0.319.0 基线件清单。官方 images 包分区为 EROFS，super.img 为 sparse 格式（unpack 阶段转 raw 后仅由 pack_super/pack-roms 原样搬运，super 零改动）；vendor/vendor_dlkm 实际以 lineage 底包（lineage-23 UTM virtio）的 ext4 vendor_a/vendor_dlkm_a 为基座。换 ROM = 新增一份同名 JSON，代码零改动。",
+  "rom": {
+    "package-tgz": {
+      "name": "popsicle_images_OS3.0.319.0.WPBCNXM_20260824.0000.00_16.0_cn_9d8daa8b5b.tgz",
+      "size": 12095203586,
+      "sha256": "ca58919eeb357dca9163958ec551ae45680740fa8e1818e0a7cf6e9cea55e5e6"
+    },
+    "kernel": {
+      "uname-version": "Linux version 6.12.23-android16-5-g75e9b1c7ae7c-abogki463945075-4k (kleaf@build-host) #1 SMP PREEMPT"
+    },
+    "images": {
+      "super.img": {
+        "size": 10700810552,
+        "sha256": "1ea4ed7ff3f008335db6caf5f8637513893bf1a95dba2366922a29189d2729ba",
+        "format": "sparse",
+        "raw-size": 13421772800
+      },
+      "boot.img": {
+        "size": 100663296,
+        "sha256": "1f60fade7cee54881d1851be89166124a19a9ee6eb4054d6df37724204a5e84b"
+      },
+      "init_boot.img": {
+        "size": 8388608,
+        "sha256": "09a09d5126b8f849365921f827b648d0a5228ec8e3cd35ce64784842ff62e900"
+      },
+      "vendor_boot.img": {
+        "size": 100663296,
+        "sha256": "5dddae2717c39b6bc79ad861d56919ccfabf315394e1abc6868300b2ae9a041a"
+      },
+      "dtbo.img": {
+        "size": 23068672,
+        "sha256": "67573214831fec29d0b8651f9e849641595e43c03b69be64c69aa861a777a2ca"
+      },
+      "recovery.img": {
+        "size": 104857600,
+        "sha256": "9bed3fab7794c920cf3b14112b574d305a90b0a544d7b4129155ef9fd2005755"
+      },
+      "vbmeta.img": {
+        "size": 12288,
+        "sha256": "69f4b4bf64593452f1f09f021dd4186080392e51cb3cc9137ae694ef47fb7981"
+      },
+      "vbmeta_system.img": {
+        "size": 4096,
+        "sha256": "eb8cf831303c34548e646c78a6466f9b0f23295914afcc27e33ee70a4f03acf4"
+      },
+      "metadata.img": {
+        "size": 2236644,
+        "sha256": "77e2e49b6bf49b36d1ce7d96d0fa03a04b9525c6b4ae716ecbc2239bebf1a560"
+      },
+      "persist.img": {
+        "size": 48234496,
+        "sha256": "436d1f21443396ac36d926978e3b5065323aa8e32173b72b741cf1af63fb2587"
+      },
+      "userdata.img": {
+        "size": 2729919352,
+        "sha256": "5575d229a8603aec38e0eb773e3986842ac0c9bbb09ccb15e90d82f8e755049c"
+      },
+      "vm-bootsys.img": {
+        "size": 33120452,
+        "sha256": "df42ad01d32ef5853d7711aae1069835e159fa65d6772e4658e1c41553c422e0"
+      },
+      "vm-persist.img": {
+        "size": 110882988,
+        "sha256": "3835340ae368d550df5b9a3ee71ffb119ddaa9951fcb68bcd4936f0f60590bf1"
+      }
+    },
+    "vendor-fstype": "erofs",
+    "bootconfig": {
+      "androidboot.hardware": "qcom",
+      "note": "vendor_boot bootconfig 携带 androidboot.hardware=qcom（ro.hardware=qcom → first-stage fstab.qcom）。"
+    },
+    "note": "官方 images 包（<ROM_ROOT_DIR>/images/ 平铺）全部为 EROFS（super.img 为 sparse）；pack_super/pack-roms 对 super 零改动原样搬运。"
+  },
+  "lineage": {
+    "base-dir": "lineage-rom/lineage-23",
+    "images": {
+      "boot_a.img": {
+        "size": 83886080,
+        "sha256": "0af0780142b5f4b8d6619e7bc2bd8a5e390f04f113c28f5bab36c5a8f9486620"
+      },
+      "vendor_boot_a.img": {
+        "size": 104857600,
+        "sha256": "a068b896a45076f385d4c206356d88eccb2187f900f8c2faaaaedafedb36372e"
+      },
+      "super/vendor_a.img": {
+        "size": 388866048,
+        "sha256": "1945f805ac0dbfcede1436527a5ce1bbc5536f782e5e6981b1339b5e3aaf9f0b"
+      },
+      "super/vendor_dlkm_a.img": {
+        "size": 15831040,
+        "sha256": "89ad32828157c4d8f0c5b7d244fe922e799a05b163323c4e399e44c73ebdb844"
+      }
+    },
+    "fstype": "ext4",
+    "note": "lineage 底包 UTM-VM-lineage-23.2-20260922-UNOFFICIAL-virtio_arm64only.zip（Android 16 / 6.12 GKI，unpack 阶段解得；base-dir 相对项目根，images 键相对 base-dir）。build-vendor / build-vendor_dlkm 基座为 super/vendor_a（ext4，debugfs 可解析，virtio 内核匹配）；build-boot / build-vendor-boot 基座为 boot_a / vendor_boot_a（vda GPT 分区提取件）。"
+  },
+  "vendor": {
+    "build-prop-sets": [
+      [
+        "ro.product.vendor.brand",
+        "Xiaomi"
+      ],
+      [
+        "ro.product.vendor.device",
+        "mivendor"
+      ],
+      [
+        "ro.product.vendor.manufacturer",
+        "Xiaomi"
+      ],
+      [
+        "ro.product.vendor.model",
+        "Xiaomi for arm64"
+      ],
+      [
+        "ro.product.vendor.name",
+        "mivendor_sm8850"
+      ],
+      [
+        "ro.vendor.product.cpu.abilist",
+        "arm64-v8a"
+      ],
+      [
+        "ro.vendor.product.cpu.abilist32",
+        ""
+      ],
+      [
+        "ro.vendor.product.cpu.abilist64",
+        "arm64-v8a"
+      ],
+      [
+        "ro.vendor.build.date",
+        "Mon Aug 24 10:17:37 CST 2026"
+      ],
+      [
+        "ro.vendor.build.date.utc",
+        "1787537857"
+      ],
+      [
+        "ro.vendor.build.fingerprint",
+        "Xiaomi/mivendor/mivendor:16/BQ2A.250705.001-BP2A.250605.031.A3/OS3.0.319.0.WPBCNXM:user/release-keys"
+      ],
+      [
+        "ro.vendor.build.id",
+        "BQ2A.250705.001-BP2A.250605.031.A3"
+      ],
+      [
+        "ro.vendor.build.tags",
+        "release-keys"
+      ],
+      [
+        "ro.vendor.build.type",
+        "user"
+      ],
+      [
+        "ro.vendor.build.version.incremental",
+        "OS3.0.319.0.WPBCNXM"
+      ],
+      [
+        "ro.vendor.build.version.release",
+        "16"
+      ],
+      [
+        "ro.vendor.build.version.release_or_codename",
+        "16"
+      ],
+      [
+        "ro.vendor.build.version.sdk",
+        "36"
+      ],
+      [
+        "ro.vendor.build.version.sdk_full",
+        "36.0"
+      ],
+      [
+        "ro.bionic.arch",
+        "arm64"
+      ],
+      [
+        "ro.bionic.cpu_variant",
+        "oryon"
+      ],
+      [
+        "ro.bionic.2nd_arch",
+        ""
+      ],
+      [
+        "ro.bionic.2nd_cpu_variant",
+        ""
+      ],
+      [
+        "persist.sys.dalvik.vm.lib.2",
+        "libart.so"
+      ],
+      [
+        "dalvik.vm.isa.arm64.variant",
+        "oryon"
+      ],
+      [
+        "dalvik.vm.isa.arm64.features",
+        "default"
+      ],
+      [
+        "ro.minui.pixel_format",
+        "RGBX_8888"
+      ],
+      [
+        "ro.boot.dynamic_partitions",
+        "true"
+      ],
+      [
+        "ro.board.first_api_level",
+        "202504"
+      ],
+      [
+        "ro.board.api_level",
+        "202504"
+      ],
+      [
+        "ro.board.api_frozen",
+        "true"
+      ],
+      [
+        "ro.vendor.build.security_patch",
+        "2026-08-01"
+      ],
+      [
+        "ro.vendor.boot_security_patch",
+        "2026-08-01"
+      ],
+      [
+        "ro.product.board",
+        "canoe"
+      ],
+      [
+        "ro.board.platform",
+        "canoe"
+      ],
+      [
+        "ro.vendor.qti.soc_name",
+        "canoe"
+      ],
+      [
+        "ro.build.ab_update",
+        "true"
+      ],
+      [
+        "ro.vendor.build.ab_ota_partitions",
+        "vendor"
+      ],
+      [
+        "ro.virtual_ab.enabled",
+        "true"
+      ],
+      [
+        "ro.virtual_ab.compression.enabled",
+        "true"
+      ],
+      [
+        "ro.virtual_ab.userspace.snapshots.enabled",
+        "true"
+      ],
+      [
+        "ro.virtual_ab.batch_writes",
+        "true"
+      ],
+      [
+        "ro.virtual_ab.io_uring.enabled",
+        "false"
+      ],
+      [
+        "ro.virtual_ab.compression.xor.enabled",
+        "true"
+      ],
+      [
+        "ro.virtual_ab.compression.threads",
+        "true"
+      ],
+      [
+        "external_storage.projid.enabled",
+        "1"
+      ],
+      [
+        "external_storage.casefold.enabled",
+        "1"
+      ],
+      [
+        "external_storage.sdcardfs.enabled",
+        "0"
+      ],
+      [
+        "ro.zygote",
+        "zygote64"
+      ],
+      [
+        "dalvik.vm.dex2oat64.enabled",
+        "true"
+      ],
+      [
+        "keyguard.no_require_sim",
+        "true"
+      ],
+      [
+        "ro.com.android.dataroaming",
+        "true"
+      ],
+      [
+        "ro.config.ringtone",
+        "Ring_Synth_04.ogg"
+      ],
+      [
+        "ro.logd.size.stats",
+        "64K"
+      ],
+      [
+        "log.tag.stats_log",
+        "I"
+      ],
+      [
+        "ro.carrier",
+        "unknown"
+      ],
+      [
+        "ro.config.notification_sound",
+        "OnTheHunt.ogg"
+      ],
+      [
+        "ro.config.alarm_alert",
+        "Alarm_Classic.ogg"
+      ],
+      [
+        "ro.recovery.usb.vid",
+        "18D1"
+      ],
+      [
+        "ro.recovery.usb.adb.pid",
+        "D001"
+      ],
+      [
+        "ro.recovery.usb.fastboot.pid",
+        "4EE0"
+      ],
+      [
+        "dalvik.vm.heapstartsize",
+        "16m"
+      ],
+      [
+        "dalvik.vm.heapgrowthlimit",
+        "256m"
+      ],
+      [
+        "dalvik.vm.heapsize",
+        "512m"
+      ],
+      [
+        "dalvik.vm.heaptargetutilization",
+        "0.5"
+      ],
+      [
+        "dalvik.vm.heapminfree",
+        "8m"
+      ],
+      [
+        "dalvik.vm.heapmaxfree",
+        "32m"
+      ],
+      [
+        "ro.vendor.vm.ssr.enable",
+        "false"
+      ],
+      [
+        "vendor.audio.hdr.spf.record.enable",
+        "false"
+      ],
+      [
+        "vendor.audio.hdr.record.enable",
+        "false"
+      ],
+      [
+        "vendor.audio.offload.buffer.size.kb",
+        "32"
+      ],
+      [
+        "vendor.audio.compress_capture.enabled",
+        "true"
+      ],
+      [
+        "vendor.audio.compress_capture.aac",
+        "true"
+      ],
+      [
+        "vendor.audio.hal.aidl.enabled",
+        "true"
+      ],
+      [
+        "ro.usb.uvc.enabled",
+        "true"
+      ],
+      [
+        "persist.vendor.cnss_diag.enable",
+        "true"
+      ],
+      [
+        "persist.vendor.tcpdump.enable",
+        "true"
+      ],
+      [
+        "vendor.mseccam.auto.start",
+        "false"
+      ],
+      [
+        "ro.vendor.miface.started",
+        "true"
+      ],
+      [
+        "ro.vendor.mi_fake_32bit_support",
+        "true"
+      ],
+      [
+        "ro.vendor.mi_support_zygote32_lazyload",
+        "true"
+      ],
+      [
+        "ro.adb.secure",
+        "1"
+      ],
+      [
+        "ro.oem_unlock_supported",
+        "1"
+      ],
+      [
+        "ro.surface_flinger.has_wide_color_display",
+        "true"
+      ],
+      [
+        "ro.surface_flinger.has_HDR_display",
+        "true"
+      ],
+      [
+        "ro.surface_flinger.use_color_management",
+        "true"
+      ],
+      [
+        "ro.surface_flinger.wcg_composition_dataspace",
+        "143261696"
+      ],
+      [
+        "ro.surface_flinger.protected_contents",
+        "true"
+      ],
+      [
+        "ro.surface_flinger.use_content_detection_for_refresh_rate",
+        "true"
+      ],
+      [
+        "ro.surface_flinger.set_touch_timer_ms",
+        "200"
+      ],
+      [
+        "ro.surface_flinger.force_hwc_copy_for_virtual_displays",
+        "true"
+      ],
+      [
+        "ro.surface_flinger.max_frame_buffer_acquired_buffers",
+        "3"
+      ],
+      [
+        "ro.surface_flinger.max_virtual_display_dimension",
+        "4096"
+      ],
+      [
+        "ro.surface_flinger.supports_background_blur",
+        "1"
+      ],
+      [
+        "ro.surface_flinger.clear_slots_with_set_layer_buffer",
+        "false"
+      ],
+      [
+        "ro.surface_flinger.game_default_frame_rate_override",
+        "60"
+      ],
+      [
+        "ro.vendor.displayfeature.dump",
+        "true"
+      ],
+      [
+        "ro.soc.manufacturer",
+        "QTI"
+      ],
+      [
+        "ro.vendor.board.family",
+        "f-canoe"
+      ],
+      [
+        "ro.control_privapp_permissions",
+        "enforce"
+      ],
+      [
+        "persist.vendor.qcomsysd.enabled",
+        "1"
+      ],
+      [
+        "vendor.power.pasr.enabled",
+        "true"
+      ],
+      [
+        "vendor.pasr.activemode.enabled",
+        "true"
+      ],
+      [
+        "persist.backup.ntpServer",
+        "0.pool.ntp.org"
+      ],
+      [
+        "sys.vendor.shutdown.waittime",
+        "500"
+      ],
+      [
+        "ro.frp.pst",
+        "/dev/block/bootdevice/by-name/frp"
+      ],
+      [
+        "ro.vendor.beluga.p",
+        "0x3"
+      ],
+      [
+        "ro.vendor.beluga.c",
+        "0x4800"
+      ],
+      [
+        "ro.vendor.beluga.s",
+        "0x900"
+      ],
+      [
+        "ro.vendor.beluga.t",
+        "0x240"
+      ],
+      [
+        "wifi.aware.interface",
+        "wifi-aware0"
+      ],
+      [
+        "ro.incremental.enable",
+        "yes"
+      ],
+      [
+        "persist.vendor.qfp",
+        "true"
+      ],
+      [
+        "ro.vendor.qspm.enable",
+        "true"
+      ],
+      [
+        "persist.vendor.radio.enableadvancedscan",
+        "true"
+      ],
+      [
+        "persist.sys.fuse.passthrough.enable",
+        "true"
+      ],
+      [
+        "ro.mediaserver.64b.enable",
+        "true"
+      ],
+      [
+        "graphics.gpu.profiler.support",
+        "true"
+      ],
+      [
+        "ro.audio.flinger_standbytime_ms",
+        "2000"
+      ],
+      [
+        "ro.audio.usecase_validator_enabled",
+        "true"
+      ],
+      [
+        "vendor.audio_hal.timecheck_timeoutMS",
+        "8000"
+      ],
+      [
+        "vendor.audio_hal.period_size",
+        "192"
+      ],
+      [
+        "vendor.audio.ull_record_period_multiplier",
+        "2"
+      ],
+      [
+        "vendor.audio.offload.track.enable",
+        "true"
+      ],
+      [
+        "vendor.audio.offload.multiple.enabled",
+        "false"
+      ],
+      [
+        "vendor.audio.flac.sw.decoder.24bit",
+        "true"
+      ],
+      [
+        "persist.vendor.bt.a2dp_offload_cap",
+        "sbc-aptx-aptxtws-aptxhd-aac-ldac-lhdc-mihc"
+      ],
+      [
+        "ro.bluetooth.a2dp_offload.supported",
+        "true"
+      ],
+      [
+        "persist.bluetooth.a2dp_offload.disabled",
+        "false"
+      ],
+      [
+        "persist.bluetooth.a2dp_offload.cap",
+        "sbc-aac-aptx-aptxhd-ldac-lhdc-mihc"
+      ],
+      [
+        "vendor.audio.use.sw.alac.decoder",
+        "true"
+      ],
+      [
+        "vendor.audio.use.sw.ape.decoder",
+        "true"
+      ],
+      [
+        "vendor.audio.use.sw.mpegh.decoder",
+        "true"
+      ],
+      [
+        "vendor.audio.hw.aac.encoder",
+        "false"
+      ],
+      [
+        "vendor.audio.adm.buffering.ms",
+        "3"
+      ],
+      [
+        "vendor.audio.volume.headset.gain.depcal",
+        "true"
+      ],
+      [
+        "vendor.audio.c2.preferred",
+        "true"
+      ],
+      [
+        "debug.c2.use_dmabufheaps",
+        "1"
+      ],
+      [
+        "vendor.qc2audio.suspend.enabled",
+        "true"
+      ],
+      [
+        "vendor.qc2audio.per_frame.flac.dec.enabled",
+        "true"
+      ],
+      [
+        "debug.stagefright.omx_default_rank",
+        "0"
+      ],
+      [
+        "vendor.audio.hal.output.suspend.supported",
+        "true"
+      ],
+      [
+        "persist.vendor.bt.aac_frm_ctl.enabled",
+        "true"
+      ],
+      [
+        "persist.vendor.bt.aac_vbr_frm_ctl.enabled",
+        "true"
+      ],
+      [
+        "vendor.audio.feature.a2dp_offload.enable",
+        "true"
+      ],
+      [
+        "vendor.audio.feature.battery_listener.enable",
+        "true"
+      ],
+      [
+        "vendor.audio.feature.hfp.enable",
+        "true"
+      ],
+      [
+        "vendor.audio.feature.kpi_optimize.enable",
+        "true"
+      ],
+      [
+        "vendor.audio.feature.dmabuf.cma.memory.enable",
+        "false"
+      ],
+      [
+        "vendor.audio.feature.audiozoom.enable",
+        "false"
+      ],
+      [
+        "aaudio.mmap_policy",
+        "2"
+      ],
+      [
+        "aaudio.mmap_exclusive_policy",
+        "2"
+      ],
+      [
+        "aaudio.hw_burst_min_usec",
+        "2000"
+      ],
+      [
+        "ro.vendor.audio.dualadc.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.game.mode",
+        "true"
+      ],
+      [
+        "ro.config.media_vol_steps",
+        "150"
+      ],
+      [
+        "ro.config.media_vol_default",
+        "100"
+      ],
+      [
+        "ro.config.vc_call_vol_steps",
+        "11"
+      ],
+      [
+        "ro.config.alarm_vol_steps",
+        "15"
+      ],
+      [
+        "ro.config.system_vol_steps",
+        "15"
+      ],
+      [
+        "ro.vendor.audio.gain.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.dolby.vision.support",
+        "true"
+      ],
+      [
+        "ro.vendor.dolby.dax.version",
+        "DAX3_3.14.0.0_r1"
+      ],
+      [
+        "ro.vendor.audio.dolby.dax.version",
+        "DAX3_3.14.0.0_r1"
+      ],
+      [
+        "ro.vendor.audio.dolby.dax.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.dolby.surround.enable",
+        "true"
+      ],
+      [
+        "persist.vendor.audio.misound.disable",
+        "true"
+      ],
+      [
+        "persist.vendor.audio.auto.scenario",
+        "true"
+      ],
+      [
+        "vendor.audio.dolby.control.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.soundfx.type",
+        "mi"
+      ],
+      [
+        "ro.vendor.audio.sfx.earadj",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.sfx.scenario",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.soundfx.usb",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.surround.headphone.only",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.support.sound.id",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.misound.bluetooth.enable",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.ear.scan.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.feature.spatial",
+        "5"
+      ],
+      [
+        "ro.vendor.audio.multichannel.5point1.headset",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.multi.channel",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.videobox.switch",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.multichannel.5point1",
+        "false"
+      ],
+      [
+        "ro.audio.spatializer_enabled",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.spatializer.support.speaker",
+        "true"
+      ],
+      [
+        "ro.audio.stereo_spatialization_enabled",
+        "true"
+      ],
+      [
+        "vendor.audio.useXiaomiSpatializer",
+        "true"
+      ],
+      [
+        "persist.vendor.audio.effectimplenter",
+        "dolby"
+      ],
+      [
+        "persist.vendor.audio.spatializer.enable",
+        "false"
+      ],
+      [
+        "ro.miui.audio.support.BleSpatializer",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.fweffect",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.multiroute",
+        "true"
+      ],
+      [
+        "ro.audio.monitorRotation",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.spk.stereo",
+        "true"
+      ],
+      [
+        "vendor.audio.spkcal.copy.inhal",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.voice.change.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.voice.change.youme.support",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.voice.change.version",
+        "2"
+      ],
+      [
+        "ro.vendor.audio.sos",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.feature.fade",
+        "true"
+      ],
+      [
+        "persist.vendor.audio.power.save.enable",
+        "false"
+      ],
+      [
+        "ro.vendor.audio.activity.monitor",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.enable.cid",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.remotesubmix.support_multichannel",
+        "true"
+      ],
+      [
+        "ro.vendor.audio.extendtonecallendedlength",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.aptxadaptiver2_1_support",
+        "true"
+      ],
+      [
+        "persist.sys.fflag.override.settings_bluetooth_hearing_aid",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.lossless_aptx_adaptive_le.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.bap.broadcast.assist.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.bap.broadcast.source.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.bap.unicast.client.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.vcp.controller.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.csip.set_coordinator.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.mcp.server.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.ccp.server.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.hap.client.enabled",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.dualmode_transport_support",
+        "true"
+      ],
+      [
+        "persist.bluetooth.leaudio_offload.disabled",
+        "false"
+      ],
+      [
+        "ro.vendor.bluetooth.btconfigstore",
+        "false"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.fmd_header",
+        "8:02:01:06:18:16:AA:FE:40"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.fmd_config_info",
+        "80:0C:60:90:0F:00:00:14:01"
+      ],
+      [
+        "bluetooth.profile.asha.central.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.core.le_audio.codec_extension_aidl.enabled",
+        "false"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.vsc_enabled",
+        "false"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.a2dp_offload_codec_extensibility",
+        "false"
+      ],
+      [
+        "ro.vendor.qcom.bluetooth.nl_xdump.supported",
+        "true"
+      ],
+      [
+        "persist.vendor.qti.btadvaudio.target.support.xpan",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.aac_vbr_ctl.enabled",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.aptxadaptiver2_1_support",
+        "true"
+      ],
+      [
+        "persist.sys.fflag.override.settings_bluetooth_hearing_aid",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.lossless_aptx_adaptive_le.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.bap.broadcast.assist.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.bap.broadcast.source.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.bap.unicast.client.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.vcp.controller.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.csip.set_coordinator.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.mcp.server.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.ccp.server.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.profile.hap.client.enabled",
+        "true"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.dualmode_transport_support",
+        "true"
+      ],
+      [
+        "persist.bluetooth.leaudio_offload.disabled",
+        "false"
+      ],
+      [
+        "ro.vendor.bluetooth.btconfigstore",
+        "false"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.fmd_header",
+        "8:02:01:06:18:16:AA:FE:40"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.fmd_config_info",
+        "80:0C:60:90:0F:00:00:14:01"
+      ],
+      [
+        "bluetooth.profile.asha.central.enabled",
+        "true"
+      ],
+      [
+        "bluetooth.core.le_audio.codec_extension_aidl.enabled",
+        "false"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.vsc_enabled",
+        "false"
+      ],
+      [
+        "persist.vendor.qcom.bluetooth.a2dp_offload_codec_extensibility",
+        "false"
+      ],
+      [
+        "ro.vendor.qcom.bluetooth.nl_xdump.supported",
+        "true"
+      ],
+      [
+        "persist.vendor.qti.btadvaudio.target.support.xpan",
+        "true"
+      ],
+      [
+        "ro.camera.enableCamera1MaxZsl",
+        "1"
+      ],
+      [
+        "ro.camera.disableHeicUltraHDR",
+        "true"
+      ],
+      [
+        "vendor.trustedui.service_start",
+        "1"
+      ],
+      [
+        "vendor.trustedui_listener.service_start",
+        "1"
+      ],
+      [
+        "vendor.trustedui_listener.service.enabled",
+        "false"
+      ],
+      [
+        "vendor.secureprocessor.service_start",
+        "1"
+      ],
+      [
+        "vendor.c2pa_listener.service_start",
+        "1"
+      ],
+      [
+        "vendor.c2pa_listener.service.enabled",
+        "false"
+      ],
+      [
+        "vendor.c2pa.service_start",
+        "1"
+      ],
+      [
+        "vendor.wv.oemcrypto.debug.enable_external_display_check",
+        "false"
+      ],
+      [
+        "drm.service.enabled",
+        "true"
+      ],
+      [
+        "vendor.wv.oemcrypto.debug.enable_hlos_data_path",
+        "true"
+      ],
+      [
+        "persist.demo.hdmirotationlock",
+        "false"
+      ],
+      [
+        "persist.sys.sf.color_saturation",
+        "1.0"
+      ],
+      [
+        "persist.sys.sf.color_mode",
+        "0"
+      ],
+      [
+        "debug.graphics.game_default_frame_rate.disabled",
+        "1"
+      ],
+      [
+        "persist.vendor.dpm.vndr.feature",
+        "1"
+      ],
+      [
+        "persist.vendor.rcs.singlereg.feature",
+        "2"
+      ],
+      [
+        "vendor.keymint.retry_timer",
+        "5"
+      ],
+      [
+        "ro.hardware.keystore_desede",
+        "true"
+      ],
+      [
+        "ro.crypto.metadata_init_delete_all_keys.enabled",
+        "true"
+      ],
+      [
+        "vendor.gatekeeper.disable_spu",
+        "true"
+      ],
+      [
+        "vendor.gatekeeper.is_security_level_spu",
+        "1"
+      ],
+      [
+        "debug.stagefright.c2inputsurface",
+        "-1"
+      ],
+      [
+        "debug.stagefright.ccodec",
+        "4"
+      ],
+      [
+        "debug.c2.use_dmabufheaps",
+        "1"
+      ],
+      [
+        "media.c2.hal.selection",
+        "aidl"
+      ],
+      [
+        "debug.stagefright.c2inputsurface",
+        "-1"
+      ],
+      [
+        "debug.stagefright.ccodec",
+        "4"
+      ],
+      [
+        "debug.c2.use_dmabufheaps",
+        "1"
+      ],
+      [
+        "media.c2.hal.selection",
+        "aidl"
+      ],
+      [
+        "debug.stagefright.c2inputsurface",
+        "-1"
+      ],
+      [
+        "debug.stagefright.ccodec",
+        "4"
+      ],
+      [
+        "debug.c2.use_dmabufheaps",
+        "1"
+      ],
+      [
+        "media.c2.hal.selection",
+        "aidl"
+      ],
+      [
+        "ro.vendor.extension_library",
+        "libqti-perfd-client.so"
+      ],
+      [
+        "ro.vendor.perf-hal.ver",
+        "3.0"
+      ],
+      [
+        "ro.vendor.perf.scroll_opt",
+        "1"
+      ],
+      [
+        "vendor.perf.framepacing.enable",
+        "1"
+      ],
+      [
+        "vendor.perf.qfps.enable",
+        "1"
+      ],
+      [
+        "persist.vendor.data.mutualex.mode",
+        "wifipreferred"
+      ],
+      [
+        "persist.vendor.sensors.enable.mag_filter",
+        "true"
+      ],
+      [
+        "persist.vendor.sensors.enable.mag_filter",
+        "true"
+      ],
+      [
+        "persist.vendor.radio.apm_sim_not_pwdn",
+        "1"
+      ],
+      [
+        "persist.vendor.radio.sib16_support",
+        "1"
+      ],
+      [
+        "persist.vendor.radio.custom_ecc",
+        "1"
+      ],
+      [
+        "persist.vendor.radio.procedure_bytes",
+        "SKIP"
+      ],
+      [
+        "persist.vendor.radio.dsds_to_ss",
+        "0"
+      ],
+      [
+        "persist.vendor.radio.dsds_to_ss_timer",
+        "120000"
+      ],
+      [
+        "persist.radio.multisim.config",
+        "dsds"
+      ],
+      [
+        "vendor.usb.rndis.func.name",
+        "gsi"
+      ],
+      [
+        "vendor.usb.rmnet.func.name",
+        "gsi"
+      ],
+      [
+        "vendor.usb.rmnet.inst.name",
+        "rmnet"
+      ],
+      [
+        "vendor.usb.dpl.inst.name",
+        "dpl"
+      ],
+      [
+        "vendor.usb.controller",
+        "a600000.dwc3"
+      ],
+      [
+        "vendor.usb.qdss.inst.name",
+        "qdss_sw"
+      ],
+      [
+        "vendor.usb.diag.func.name",
+        "ffs"
+      ],
+      [
+        "vendor.usb.use_ffs_mtp",
+        "1"
+      ],
+      [
+        "sys.usb.mtp.batchcancel",
+        "1"
+      ],
+      [
+        "vendor.usb.use_gadget_hal",
+        "1"
+      ],
+      [
+        "debug.stagefright.c2inputsurface",
+        "-1"
+      ],
+      [
+        "debug.stagefright.ccodec",
+        "4"
+      ],
+      [
+        "debug.c2.use_dmabufheaps",
+        "1"
+      ],
+      [
+        "media.c2.hal.selection",
+        "aidl"
+      ],
+      [
+        "wifi.aware.interface",
+        "wifi-aware0"
+      ],
+      [
+        "ro.vendor.radio.build_region",
+        "cn"
+      ],
+      [
+        "ro.vendor.radio.build_profile",
+        "miui"
+      ],
+      [
+        "persist.vendor.batteryantiaging",
+        "1"
+      ],
+      [
+        "persist.sys.miui.camera.version",
+        "3.0"
+      ],
+      [
+        "ro.vendor.mm.vibrator.sys_path",
+        "/sys/class/qcom-haptics"
+      ],
+      [
+        "drm.service.enabled",
+        "true"
+      ],
+      [
+        "ro.camerax.extensions.enabled",
+        "true"
+      ],
+      [
+        "dalvik.vm.dex2oat64.enabled",
+        "true"
+      ]
+    ],
+    "build-prop-unsets": [],
+    "selinux-labels": {
+      "bin/daemon": "u:object_r:pioneer_exec:s0",
+      "bin/logcat-dump": "u:object_r:system_file:s0",
+      "bin/setup_display.sh": "u:object_r:system_file:s0",
+      "bin/netmgr_setup": "u:object_r:pioneer_exec:s0",
+      "bin/dlkm_loader_mainline": "u:object_r:pioneer_exec:s0",
+      "etc/init/dlkm_loader_mainline.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/fstab.qcom": "u:object_r:vendor_configs_file:s0",
+      "etc/init/cph_daemon.rc": "u:object_r:system_file:s0",
+      "etc/init/cph_disable_provision.rc": "u:object_r:vendor_file:s0",
+      "etc/init/cph_logcat_dump.rc": "u:object_r:vendor_file:s0",
+      "etc/init/cph_mi_display_props.rc": "u:object_r:vendor_file:s0",
+      "etc/init/cph_start_adbd.rc": "u:object_r:vendor_file:s0",
+      "etc/init/netmgr.rc": "u:object_r:vendor_file:s0",
+      "etc/init/hw/init.qcom.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/init/hw/init.virt.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/permissions/android.hardware.telephony.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/permissions/privapp-permissions-miuihome.xml": "u:object_r:vendor_configs_file:s0",
+      "usr/idc/QEMU Virtio MultiTouch.idc": "u:object_r:vendor_file:s0",
+      "usr/idc/QEMU Virtio Tablet.idc": "u:object_r:vendor_file:s0",
+      "usr/idc/virt_tablet2multitouch.idc": "u:object_r:vendor_file:s0",
+      "bin/hw/android.hardware.vibrator-service.cdh-popsicle": "u:object_r:hal_vibrator_default_exec:s0",
+      "etc/init/android.hardware.vibrator-service.cdh-popsicle.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/vintf/manifest/android.hardware.vibrator-service.xml": "u:object_r:vendor_configs_file:s0",
+      "bin/hw/android.hardware.ir-service.example": "u:object_r:hal_ir_default_exec:s0",
+      "lib64/android.hardware.ir-V1-ndk.so": "u:object_r:vendor_file:s0",
+      "etc/init/android.hardware.ir-service.example.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/vintf/manifest/android.hardware.ir-service.example.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/init/cph_frp_symlink.rc": "u:object_r:vendor_file:s0",
+      "bin/hw/vendor.qti.hardware.perf2-hal-service": "u:object_r:vendor_hal_perf_default_exec:s0",
+      "lib64/vendor.qti.snapdragonServices-V1-ndk.so": "u:object_r:vendor_file:s0",
+      "lib64/vendor.qti.snapdragonServices.qape-V1-ndk.so": "u:object_r:vendor_file:s0",
+      "lib64/libq-perflog.so": "u:object_r:vendor_file:s0",
+      "lib64/vendor.qti.hardware.perf2-V1-ndk.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-scenariod.so": "u:object_r:vendor_file:s0",
+      "lib64/libperfconfig.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-perfd.so": "u:object_r:vendor_file:s0",
+      "etc/init/vendor.qti.hardware.perf2-hal-service.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/vintf/manifest/vendor.qti.hardware.perf2.xml": "u:object_r:vendor_configs_file:s0",
+      "lib64/libqti-util.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-utils.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-perfd-client.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-qape-engine.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-engine-loader.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-lllite.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-sslite.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-s3tf.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-qesdk-secure.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-perfextn-intf.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-jankrescue.so": "u:object_r:vendor_file:s0",
+      "lib64/libqti-appclassifier.so": "u:object_r:vendor_file:s0",
+      "bin/hw/android.hardware.security.keymint-service": "u:object_r:hal_keymint_default_exec:s0",
+      "etc/init/android.hardware.security.keymint-service.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/vintf/manifest/android.hardware.security.keymint-service.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/vintf/manifest/mapper.minigbm_upstream.xml": "u:object_r:vendor_configs_file:s0",
+      "bin/hw/android.hardware.audio.service-aidl.example": "u:object_r:hal_audio_default_exec:s0",
+      "bin/hw/android.hardware.audio.effect.service-aidl.example": "u:object_r:hal_audio_default_exec:s0",
+      "etc/init/android.hardware.audio.service-aidl.example.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/vintf/manifest/android.hardware.audio.service-aidl.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/primary_audio_policy_configuration.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/audio_policy_engine_configuration.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/audio_policy_engine_product_strategies.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/audio_policy_engine_stream_volumes.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/audio_policy_engine_default_stream_volumes.xml": "u:object_r:vendor_configs_file:s0"
+    },
+    "note": "build-prop-sets 逐条取自官方 vendor_a.img /build.prop（Xiaomi mivendor_sm8850 通用 vendor 身份，Android16/SDK36），仅剔除图形栈选择键（ro.hardware.egl/vulkan、ro.opengles.version、ro.hwui.use_vulkan、ro.gfx.driver.*、vendor.gralloc.*、vendor.display.*、debug.sf.*、debug.egl.*、debug.mdpcomp.*）——云机图形走 virtio（lineage 基座/init.virt.rc 决定）。例外新增三件图形选择键 ro.hardware.egl=mesa / ro.hardware.vulkan=virtio / ro.hardware.gralloc=minigbm，值即 init.qcom.rc:65-68 + init.virt.rc:45 在 mesa+virtio_gpu 路径上要 setprop 的同值，只是提前到 build.prop：该 rc 链由 /vendor/bin/virtgpu_detect（early-boot 才 exec，且自身被 avc 拒读 system_prop 拖慢）触发，实测 logcat 08:00:12.185 才处理成 setprop，而 zygote64 的 ZygoteInit.preload -> zygote_preload_graphics -> eglGetDisplay 在 08:00:12.168 已放弃，libEGL 只好回落第三顺位 ro.board.platform（本盘该值被官方 gold 件顶成 canoe，基座本是 virt，而 vendor 树内只有 libEGL_*_mesa.so、无 Adreno 件）-> LOG_ALWAYS_FATAL \"couldn't find an OpenGL ES implementation\" -> zygote SIGABRT（实例 16 实测 2026-10-10）。按 note13 机制成立：ro.* 是 set-once，build.prop 在 init property_init 阶段加载，早于 rc 的 setprop，故本表胜出（见 note13 android.hardware.gpu/config/gpu.json 的 properties-note）。例外新增：ro.vendor.boot_security_patch 非官方件，Cuttlefish Remote KeyMint 初始化第 3 步 ConfigureBootPatchlevel 以 std::stoi(getProperty(...)) 直读该属性、无空值兜底（缺属性 → std::invalid_argument → SIGABRT，note13 实测根因），值与 ro.vendor.build.security_patch 同口径。例外新增 ro.vendor.qti.soc_name=canoe：gold 基座下 /vendor 是官方 vendor_a 原件，而官方 /vendor/etc/vintf/ 只有 manifest_canoe.xml / manifest_alor.xml + manifest/ 片段目录，**没有** manifest.xml——多 SKU 盘的基座 manifest 由 libvintf 按 ro.boot.product.vendor.sku 选（实测本盘 /system/lib64/libvintf.so 同时含字符串 ro.boot.product.vendor.sku、/vendor/etc/vintf/、manifest_，即拼 /vendor/etc/vintf/manifest_<sku>.xml），该属性由官方 /vendor/etc/init/init.qti.qcv.rc 的 early-init 行 setprop ro.boot.product.vendor.sku ${ro.vendor.qti.soc_name} 给出，而 ro.vendor.qti.soc_name 又由官方 /vendor/bin/init.qti.qcv.sh 从 /sys/devices/soc0/soc_id 反推（canoe=660/661/704）——云机无 QTI socinfo，soc_id 为空 → 脚本 if 链整段失败 → soc_name/sku 皆空 → libvintf 回落 /vendor/etc/vintf/manifest.xml（无）→ legacy /vendor/manifest.xml（无）→ servicemanager「VINTF parse error: Cannot read /vendor/manifest.xml」×48422、NULL VINTF MANIFEST → keymint-strongbox/secure_element SIGABRT、keystore2 崩、BootMonitor 每 1248s 整机重启（实例 18 实测 2026-10-10）。故只补这一个真机本就该有的属性，让官方 rc 链路自己把 sku 设上：不改厂商任何字节、不新增内核重定向规则，且设备 manifest 用官方 manifest_canoe.xml 原件（含 ISecureElement/eSE1、ISlaAIDLService、IMiNetAIDLService、IMiPowerHalAIDLService、IMiwillAIDLService 五条仅在该文件里声明的 HAL，与真机口径一致）。selinux-labels 为 vendor/patch 注入文件的 security.selinux 标签（键 = 注入树内相对路径），注入时按此回填，标签缺失即报错退出。"
+  },
+  "vendor-dlkm": {
+    "baseline-build-prop": {
+      "path": "/etc/build.prop",
+      "length": 1266,
+      "sha256": "9ae24862e2299e74e8f13d4bfbead15c42822f5cddfd00801ce25efc9b862d6f",
+      "label": "u:object_r:vendor_configs_file:s0"
+    },
+    "note": "build-vendor_dlkm props 基线：官方 vendor_dlkm_a.img（EROFS）内 /etc/build.prop 提取件（popsicle/2509FPN0BC「Xiaomi 17 Pro Max」真实设备身份），覆盖 lineage 基座渲染的 VirtIO 版本。"
+  },
+  "odm": {
+    "baseline-build-prop": {
+      "path": "/etc/build.prop",
+      "length": 19425,
+      "sha256": "2545d4789a3cc49f4de535af2a3e39f28feec4cfc79665499bcf8e5178190b8c",
+      "label": "u:object_r:vendor_file:s0"
+    },
+    "note": "build-patch props 基线：官方 odm_a.img（EROFS）内 /etc/build.prop 提取件（19425B，含 ro.product.property_source_order=odm,vendor,...——全分区唯一定义处——及整机身份/厂商属性）。由 build-patch.py 收编进 patch.img /odm/etc/build.prop，运行时经内核重定向 /odm/etc/build.prop -> /mnt/vendor/odm/etc/build.prop 供 init 加载；官方件已声明纯 64 位 abilist（abilist32 空），无需 note13 式 ABI 改写。"
+  }
+}

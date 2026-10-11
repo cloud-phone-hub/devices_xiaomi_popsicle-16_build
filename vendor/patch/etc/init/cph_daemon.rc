@@ -1,0 +1,18 @@
+# popsicle-16 guest 守护进程（属性修整/宿主通道/adbkey 握手/ADB 启动），u:r:pioneer:s0 域
+# --event /dev/hvc7：virtconsole 布局（hvc7 = event 通道；hvc0/1 留给固件 console）
+# B 方案：daemon 内置 adbkey 握手（hvc2 ADBKEY1 收宿主公钥 -> /data/misc/adb/adb_keys），
+# 成功后 fork 子进程 setns(adb_net) 并 exec APEX adbd（--adb-cmd/--adb-arg 可覆盖，
+# 默认 /apex/com.android.adbd/bin/adbd）。自研 Rust adbd（原 --adb /dev/hvc8）已删除。
+# wifi 数据面已改由内核 mac80211_hwsim 直桥 /dev/hvc10（daemon 不再参与）
+service daemon /vendor/bin/daemon run --event /dev/hvc7
+    class main
+    seclabel u:r:pioneer:s0
+    user root
+    group root
+    socket engine stream 666 root system
+    oneshot
+
+on post-fs-data
+    start daemon
+    # 探针：打印运行时 ro.zygote（debug zygote64 注入是否生效）
+    exec u:r:pioneer:s0 root root -- /system/bin/sh -c 'getprop ro.zygote > /dev/console'

@@ -1,0 +1,30 @@
+# popsicle-16：B 方案 —— ADB 由 guest-daemon 的 hvc2 ADBKEY1 握手注入宿主
+# 公钥后，fork 子进程 exec APEX adbd（监听 TCP 5555），host 经 net0 SLIRP
+# hostfwd <ADBPort>→5555 连接。
+# adbd 的 netns 由 netmgr 决定：/mnt/run/adb_net 现指向 **init 主 netns**
+# （不再隔离），因此 adbd 与 adb shell 都在主 netns —— 与真机一致，普通
+# app/shell 能看到 rmnet0/wlan0 等网卡。
+# 自研 Rust adbd 已删除（不再走 /dev/hvc8），平台 /system/bin/adbd 不启用
+# （其一旦 running 即 stop，避免抢 5555）。
+#
+# service.adb.tcp.port 置 5555：APEX adbd 据此开启 TCP 监听。
+# persist.security.* 是 adb input / adb install 的授权位，与由谁提供 adbd 无关。
+
+on post-fs-data
+    mkdir /data/misc/adb 2750 system shell
+    restorecon /data/misc/adb
+
+# 必须在 daemon fork adbd 之前设置：adbd 只在**启动时**读该属性决定是否开 TCP
+# 监听（AOSP 的 `on property:service.adb.tcp.port=* → restart adbd` 只作用于
+# init 的 adbd 服务，不适用于 daemon fork 出来的 adbd）。daemon 在 post-fs-data
+# 启动、握手后 fork adbd，因此这里提前到 early-init，消除"adbd 先起、属性后设 →
+# 永不监听 5555（宿主 adb offline）"的竞态。
+on early-init
+    setprop service.adb.tcp.port 5555
+
+on property:init.svc.adbd=running
+    stop adbd
+
+on property:sys.boot_completed=1
+    setprop persist.security.adbinput 1
+    setprop persist.security.adbinstall 1

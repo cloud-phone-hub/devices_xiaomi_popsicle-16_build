@@ -1,0 +1,39 @@
+# 关掉 MIUI 版 SurfaceFlinger 的「次屏」初始化（实例 36/37/38，2026-10-11 实测）。
+#
+# 客机 system_ext 的 libsurfaceflinger.so 是小米改版：initializeDisplays() 里调
+# MiSurfaceFlingerStub::initSecondaryDisplayLocked()，它按这两个 persist 属性决定要不要
+# 找第二块屏。本盘运行期出现 persist.sys.multi_display_type=6（/data 是新建的，说明写它
+# 的是 MIUI 自己的代码，官方 build.prop / rc 里没有任何播种点），于是走进
+#   F HWComposer: Missing HWC secondary display
+#   #03 android::impl::HWComposer::getSecondaryHwcDisplayId()
+#   #05 android::MiSurfaceFlingerImpl::initSecondaryDisplayLocked()
+# 的 LOG_ALWAYS_FATAL，SF 起来即 SIGABRT 循环（init.svc.surfaceflinger=restarting），
+# 永远到不了合成。反汇编口径：`atoi(prop)&0xf` 为 0（且第二个值 <=2）或为 1 时跳过次屏，
+# 其余值去要 HWC 次屏句柄 —— 所以钉在 0/1（实例 37 实测：0/1 之后 fatal 归零）。
+#
+# 为什么用 service 而不是 setprop：
+#   1) persist.sys.* 落 plat 的 system_prop 类型，官方 plat 没有 init 对 system_prop 的
+#      property_service set 授权（只有 charger/surfaceflinger/system_app/system_server），
+#      rc 里的 setprop 会被 AVC 拒；
+#   2) vendor rc 的 `on property:` 只能挂「导出给 vendor 的属性」——实例 38 实测本文件
+#      第一版挂 `ro.persistent_properties.ready=true` 直接
+#      ParseTriggers() failed: unexported property trigger found: ro.persistent_properties.ready
+#      （整条 action 被丢弃），所以这里用内置动作 early-boot + 已导出的 sys.boot_completed。
+# pioneer 域由内核置 permissive（CONFIG_CDH_PIONEER_PERMISSIVE），与
+# cph_disable_provision.rc 的 auto_provision/keep_awake 同一口径。
+# 两个触发点：early-boot 在 SF 首启之前（class_start core 之后于 boot 动作）；
+# sys.boot_completed=1 兜住 MIUI 在 system_server 起来后又把值写回 6 的情况——SF 自身
+# 会循环重启，属性一旦被纠正回来就恢复合成。
+service cph_mi_display_props /system/bin/sh -c "setprop persist.sys.muiltdisplay_type 0; setprop persist.sys.multi_display_type 1"
+    class core
+    user root
+    group root
+    oneshot
+    disabled
+    seclabel u:r:pioneer:s0
+
+on early-boot
+    start cph_mi_display_props
+
+on property:sys.boot_completed=1
+    start cph_mi_display_props

@@ -1,0 +1,14 @@
+# MIUI 16 的 PersistentDataBlockService 依 ro.frp.pst=/dev/block/bootdevice/by-name/frp
+# 打开 FRP 分区；本盘 GPT（lineage 底座）没有 frp 分区，QTI 风格的 bootdevice/by-name
+# 路径也不存在 → java.io.FileNotFoundException(ENOENT) → 该服务 init 超时 →
+#   "Failed to boot service com.android.server.pdb.PersistentDataBlockService:
+#    onBootPhase threw an exception during phase 500"
+# → system_server FATAL、反复重启（实测 2026-10-09）。
+#
+# 这里把 QTI 路径建出来并软链到本盘未被使用的 misc 分区（vda3，1MB）：本盘由 GRUB
+# 引导，不消费 Android 的 misc/BCB，故用它承载 FRP 数据块，语义上等价于真机把 FRP
+# 放在独立小分区。post-fs-data 早于 system_server 启动，时序足够。
+on post-fs-data
+    mkdir /dev/block/bootdevice 0755 root root
+    mkdir /dev/block/bootdevice/by-name 0755 root root
+    symlink /dev/block/vda3 /dev/block/bootdevice/by-name/frp

@@ -1,0 +1,39 @@
+# vendor_dlkm 模块加载（gold 基座必需）。
+#
+# 官方（MIUI/QTI）vendor 不带这个 loader：lineage 基座里它是底包自带的
+# /vendor/etc/init/dlkm_loader_mainline.rc + /vendor/bin/dlkm_loader_mainline
+# （源 = hardware/mainline/common/dlkm_loader_mainline，扫 /vendor_dlkm/lib/modules、
+# /vendor/lib/modules、/odm/lib/modules 的 modules.load 并 insmod，收尾置
+# vendor.dlkm.modules.ready）。gold 基座换掉整棵 /vendor 后该件消失，实测后果：
+# 实例 22（2026-10-10）全程没有任何 "Loaded kernel module" 记录，virtio_console 未加载
+# → /dev/hvc3 不存在 → 官方 init.virt.rc 的 `wait /dev/hvc3 30` 超时 30s 后
+# Remote KeyMint "Could not connect to keymaster" SIGABRT，且 cdh_media /
+# mac80211_hwsim 等 CDH 模块一并缺位。故由 patch 树补回同一件（二进制与
+# 3a-16/oriole-16/sm-s9380-16 三台 md5 一致）。
+#
+# seclabel 走 pioneer（内核 CONFIG_CDH_PIONEER_PERMISSIVE 置 permissive）而不是照抄
+# lineage 的「无 seclabel、继承 init 域」：gold 策略里没有 dlkm_loader 域，也未对
+# init 授予 vendor_file:file 的完整执行链，靠 permissive 域跑最稳且与本机其它
+# 自供 root 服务（netmgr_setup）口径一致。
+service vendor.dlkm_loader_mainline /vendor/bin/dlkm_loader_mainline
+    class main
+    user root
+    group root system
+    seclabel u:r:pioneer:s0
+    disabled
+    oneshot
+
+on init
+    # 用 ueventd 加载固件（缺省是 sysfs fallback 关闭，模组请求固件会直接失败）
+    write /proc/sys/kernel/firmware_config/force_sysfs_fallback 1
+
+    # 用 exec_start 而不是 lineage 原版的 start：start 是异步的，init 只在
+    # Service::Start() 里打一行 "starting service ..."，实例 23（2026-10-10）里
+    # 这一行完全没出现（同一时刻隔壁 qseecomd.rc 的 start 打了），且 logd 此刻
+    # 已起（1.74s），子进程的 stdout/stderr 只进 logd 不进串口，qemu.log 里因此
+    # 什么都看不到——既无法判断有没有起，也拿不到失败原因。exec_start 走
+    # Command 通道：init 打 "SVC_EXEC ... started; waiting..."，退出非 0 或
+    # execve/链接失败都会落成一条 "Command '...' took Xms and failed: ..."，
+    # 串口可见；同时它同步等完，模块必然先于 post-fs 的 `wait /dev/hvc3 30`
+    # 就位，不用赌时序。
+    exec_start vendor.dlkm_loader_mainline

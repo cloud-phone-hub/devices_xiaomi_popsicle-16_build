@@ -1,0 +1,11 @@
+<manifest version="1.0" type="device">
+  <!-- popsicle-16 自研 vibrator HAL（虚拟 HAL）：
+       lineage 底座没有 vibrator HAL，故由本服务提供 IVibrator/default 与
+       IVibratorManager/default，VibratorManagerService 据此枚举振动器与能力。 -->
+  <hal format="aidl">
+    <name>android.hardware.vibrator</name>
+    <version>2</version>
+    <fqname>IVibrator/default</fqname>
+    <fqname>IVibratorManager/default</fqname>
+  </hal>
+</manifest>

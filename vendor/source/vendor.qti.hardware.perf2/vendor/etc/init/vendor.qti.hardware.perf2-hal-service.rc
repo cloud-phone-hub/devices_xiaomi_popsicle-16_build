@@ -1,0 +1,14 @@
+# popsicle-16 收编的官方 QTI perf2 HAL（见同目录 build.py 的背景说明）。
+#
+# 官方 system 的 compatibility_matrix.device.xml 把 vendor.qti.hardware.perf2.IPerf/default
+# 列为必需 HAL；缺它时 servicemanager 反复 lazy 启动失败，PackageManagerService.systemReady 里
+# android.util.BoostFramework 的连接调用（IPerfManager.setClientBinder）永久阻塞，主线程 65s
+# 后被 Watchdog 杀 → system_server 反复重启、界面卡在开机动画（实测 2026-10-09）。
+#
+# 组未沿用官方 rc 的 oem_2907（QTI 专属组，本盘未必存在，缺失会导致服务起不来）。
+service perf2-hal-1-0 /vendor/bin/hw/vendor.qti.hardware.perf2-hal-service
+    class hal
+    user root
+    group root system readproc
+    seclabel u:r:vendor_hal_perf_default:s0
+    interface aidl vendor.qti.hardware.perf2.IPerf/default

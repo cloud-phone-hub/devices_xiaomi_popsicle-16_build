@@ -1,0 +1,105 @@
+# popsicle-16 云机 fstab（对真机 gold /vendor/etc/fstab.qcom 的同步版）。
+#
+# 单一来源：本文件同时被 build-boot.py 读入注入 boot/init_boot ramdisk 的 first_stage
+# fstab（/first_stage_ramdisk/fstab.qcom 等四处）与经 vendor patch 树注入
+# /vendor/etc/fstab.qcom（二阶段 mount_all 读取，内核 getname_flags 把 /vendor/etc
+# 重定向到 /mnt/vendor/etc）。真机同此——boot ramdisk 里的 fstab.qcom 就是
+# /vendor/etc/fstab.qcom 的完整副本。
+#
+# 与真机的对应关系：
+#   照真机：Super logical 分区（system/system_ext/product/vendor/vendor_dlkm/
+#     system_dlkm/odm）、mi_ext（挂载 + /mi_ext bind + overlay 全套）、metadata、
+#     boot/vendor_boot。
+#   云机特化（真机行在云机不成立或不适用）：
+#     - 去掉真机 logical 行的 avb=/avb_keys= 标记：云机无 vbmeta* 分区，AVB 全程关闭
+#       （boot 日志 "AVB is not enabled, skip verity setup"）。
+#     - /data 在独立 virtio 盘（/dev/block/vdb），非真机 by-name/userdata。
+#     - persist/EFI/firmware 为 vfat（persist 必须 vfat：GRUB grubenv + android_theme 依赖）。
+#       persist 的 context= 用 mnt_vendor_file 而非真机 lineage 口径的 persist_file：
+#       本盘运行态策略 = 官方 plat + 官方 vendor sepolicy，其中没有 persist_file 类型，
+#       context= 落在不存在的类型上 vfat 直接 EINVAL 挂不上（见 build-patch.py
+#       VENDOR_SKELETON_DIRS 的同条注释）；grubenv 的读写授权由 sepolicy.py 的
+#       bootctl_persist_cil 段对 mnt_vendor_file 追加，同段还补了 init 对
+#       mnt_vendor_file 的 filesystem relabelto —— vfat 带 context= 挂载时内核要求
+#       挂载域对该类型持 relabelto，官方只授给 contextmount_type={oemfs app_fusefs}。
+#       （EFI/firmware 两行的 efi_file/firmware_file 在 gold 策略里一个不存在、
+#       一个挂不上，均为 nofail：云机没有真固件分区需求，保持原样不动。）
+#     - usb/sr 通配行保留 lineage 原写法。
+#   真机中云机不存在的 Qualcomm 物理分区（modem/modemfirmware/dsp/vm-bootsys/
+#     vm-persist/bluetooth/qmcs/spunvm/soccp/logfs/sdcard/usbotg/dtbo/recovery/
+#     init_boot 等）不引入：云机 vda.gpt 只有 lineage UTM 底盘的若干分区，这些条目
+#     必然挂载失败。官方 super 无 odm_dlkm_a（已核 super/），故本文件不设
+#     odm_dlkm 行（与 note13/MTK 不同——那边有 odm_dlkm 无 /odm）。
+#
+# 顺序要点（first stage 严格按本文件顺序串行挂载，boot 日志逐条递增可证）：
+#   vdc 必须排在 mi_ext 之前——vdc 提供 /mnt/vendor 挂载点（真机该目录由
+#   first_stage_init 在 /mnt tmpfs 上建好，云机由 patch.img 骨架提供），mi_ext 才能挂到
+#   /mnt/vendor/mi_ext。bind 与 overlay 行无 first_stage_mount 标记，由二阶段
+#   mount_all 处理（真机同此）。
+
+# 云机特有：patch.img（vdc）= lineage vendor/vendor_dlkm 内容载体（内核 getname_flags
+# 重定向目标：/vendor/X -> /mnt/vendor/X）。
+/dev/block/vdc /mnt/vendor ext4 ro first_stage_mount
+
+# Super logical（真机基准，去掉云机不适用的 avb 标记）
+system /system erofs ro wait,slotselect,logical,first_stage_mount
+system /system ext4 ro wait,slotselect,logical,first_stage_mount
+system_ext /system_ext erofs ro wait,slotselect,logical,first_stage_mount
+system_ext /system_ext ext4 ro wait,slotselect,logical,first_stage_mount
+vendor /vendor erofs ro wait,slotselect,logical,first_stage_mount
+vendor /vendor ext4 ro wait,slotselect,logical,first_stage_mount
+product /product erofs ro wait,slotselect,logical,first_stage_mount
+product /product ext4 ro wait,slotselect,logical,first_stage_mount
+mi_ext /mnt/vendor/mi_ext erofs ro wait,slotselect,logical,first_stage_mount,nofail
+mi_ext /mnt/vendor/mi_ext ext4 ro wait,slotselect,logical,first_stage_mount,nofail
+/mnt/vendor/mi_ext /mi_ext erofs ro,bind wait,nofail
+/mnt/vendor/mi_ext /mi_ext ext4 ro,bind wait,nofail
+overlay /product/overlay overlay ro,lowerdir=/mnt/vendor/mi_ext/product/overlay/:/product/overlay check,nofail
+overlay /product/app overlay ro,lowerdir=/mnt/vendor/mi_ext/product/app/:/product/app check,nofail
+overlay /product/priv-app overlay ro,lowerdir=/mnt/vendor/mi_ext/product/priv-app/:/product/priv-app check,nofail
+overlay /product/lib overlay ro,lowerdir=/mnt/vendor/mi_ext/product/lib/:/product/lib check,nofail
+overlay /product/lib64 overlay ro,lowerdir=/mnt/vendor/mi_ext/product/lib64/:/product/lib64 check,nofail
+overlay /product/bin overlay ro,lowerdir=/mnt/vendor/mi_ext/product/bin/:/product/bin check,nofail
+overlay /product/framework overlay ro,lowerdir=/mnt/vendor/mi_ext/product/framework/:/product/framework check,nofail
+overlay /product/media overlay ro,lowerdir=/mnt/vendor/mi_ext/product/media/:/product/media check,nofail
+overlay /product/opcust overlay ro,lowerdir=/mnt/vendor/mi_ext/product/opcust/:/product/opcust check,nofail
+overlay /product/data-app overlay ro,lowerdir=/mnt/vendor/mi_ext/product/data-app/:/product/data-app check,nofail
+overlay /product/etc/sysconfig overlay ro,lowerdir=/mnt/vendor/mi_ext/product/etc/sysconfig/:/product/etc/sysconfig check,nofail
+overlay /product/etc/permissions overlay ro,lowerdir=/mnt/vendor/mi_ext/product/etc/permissions/:/product/etc/permissions check,nofail
+overlay /system/app overlay ro,lowerdir=/mnt/vendor/mi_ext/system/app/:/product/pangu/system/app/:/system/app check,nofail
+overlay /system/priv-app overlay ro,lowerdir=/mnt/vendor/mi_ext/system/priv-app/:/product/pangu/system/priv-app/:/system/priv-app check,nofail
+overlay /system/framework overlay ro,lowerdir=/product/pangu/system/framework/:/system/framework check,nofail
+overlay /system/etc/sysconfig overlay ro,lowerdir=/mnt/vendor/mi_ext/system/etc/sysconfig/:/system/etc/sysconfig check,nofail
+overlay /system/etc/permissions overlay ro,lowerdir=/mnt/vendor/mi_ext/system/etc/permissions/:/product/pangu/system/etc/permissions/:/system/etc/permissions check,nofail
+overlay /product/usr overlay ro,lowerdir=/mnt/vendor/mi_ext/product/usr:/product/usr check,nofail
+overlay /product/etc/precust_theme overlay ro,lowerdir=/mnt/vendor/mi_ext/product/etc/precust_theme:/product/etc/precust_theme check,nofail
+overlay /product/etc/preferred-apps overlay ro,lowerdir=/mnt/vendor/mi_ext/product/etc/preferred-apps:/product/etc/preferred-apps check,nofail
+overlay /product/etc/security overlay ro,lowerdir=/mnt/vendor/mi_ext/product/etc/security:/product/etc/security check,nofail
+overlay /system_ext/etc/permissions overlay ro,lowerdir=/mnt/vendor/mi_ext/system_ext/etc/permissions:/system_ext/etc/permissions check,nofail
+vendor_dlkm /vendor_dlkm erofs ro wait,slotselect,logical,first_stage_mount
+vendor_dlkm /vendor_dlkm ext4 ro wait,slotselect,logical,first_stage_mount
+system_dlkm /system_dlkm erofs ro wait,slotselect,logical,first_stage_mount
+system_dlkm /system_dlkm ext4 ro wait,slotselect,logical,first_stage_mount
+odm /odm erofs ro wait,slotselect,logical,first_stage_mount
+odm /odm ext4 ro wait,slotselect,logical,first_stage_mount
+
+# Metadata（真机基准；云机 vda 该分区为空/待格式化，formattable 兜底）
+/dev/block/by-name/metadata /metadata ext4 noatime,nosuid,nodev,discard wait,check,formattable,first_stage_mount
+
+# 云机特有：/data 在独立 virtio 盘（vdb），非真机 by-name/userdata
+/dev/block/vdb /data ext4 nodev,noatime,nosuid,discard latemount,check,quota,formattable,fileencryption,keydirectory=/metadata/vold/metadata_encryption,checkpoint=block
+/dev/block/vdb /data f2fs nodev,noatime,nosuid,discard,reserve_root=32768 latemount,check,quota,formattable,fileencryption,keydirectory=/metadata/vold/metadata_encryption,fscompress,checkpoint=fs
+
+# 云机特有挂载点（真机行在云机不成立：挂载点/文件系统不同）
+/dev/block/by-name/EFI /mnt/vendor/EFI vfat rw,discard,shortname=lower,uid=0,gid=0,dmask=007,fmask=117,context=u:object_r:efi_file:s0 nofail
+/dev/block/by-name/persist /mnt/vendor/persist vfat rw,sync,shortname=lower,uid=1000,gid=1000,dmask=007,fmask=117,context=u:object_r:mnt_vendor_file:s0 formattable
+/dev/block/by-name/firmware /vendor/firmware_mnt vfat rw,shortname=lower,uid=0,gid=1000,dmask=007,fmask=117,context=u:object_r:firmware_file:s0 nofail
+share /mnt/vendor/shared virtiofs nosuid,nodev,noatime nofail
+share /mnt/vendor/shared 9p trans=virtio,version=9p2000.L,nosuid,nodev,noatime nofail
+/dev/block/by-name/misc /misc emmc defaults defaults
+/devices/*/block/sr* auto auto defaults voldmanaged=cdrom:auto
+/devices/*/usb* auto auto defaults voldmanaged=usb:auto
+
+# Boot（真机基准；init_boot 仅 bootloader 消费，云机 init 无需挂载，故不设行）
+/dev/block/by-name/boot /boot emmc defaults first_stage_mount,nofail,slotselect
+/dev/block/by-name/vendor_boot /vendor_boot emmc defaults first_stage_mount,nofail,slotselect

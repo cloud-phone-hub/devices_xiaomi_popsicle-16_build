@@ -1,0 +1,90 @@
+import /vendor/etc/init/hw/init.low_performance.rc
+
+# Block devices
+on early-fs
+    symlink /dev/block/by-name/BIOS /dev/block/by-name/BIOS_a
+    symlink /dev/block/by-name/BIOS /dev/block/by-name/BIOS_b
+    symlink /dev/block/by-name/EFI /dev/block/by-name/EFI_a
+    symlink /dev/block/by-name/EFI /dev/block/by-name/EFI_b
+
+# Boot manager
+service vendor.grub-editenv-set-android_theme /vendor/bin/grub-editenv /mnt/vendor/persist/grubenv set android_theme=${persist.sys.theme}
+    user system
+    group system
+    disabled
+    oneshot
+
+on property:persist.sys.theme=*
+    start vendor.grub-editenv-set-android_theme
+
+# Display
+on early-init
+    setprop ro.sf.lcd_density ${ro.boot.lcd_density:-160}
+
+# DLKM Loader
+service vendor.dlkm_loader /vendor/bin/dlkm_loader
+    class main
+    user root
+    group root system
+    disabled
+    oneshot
+
+# Remote KeyMint 门控：vendor.keymint-default 走 /dev/hvc3 与宿主 secure_env 通信，
+# 而 /dev/hvc3 由 virtio_console（ko）在 dlkm_loader 加载后才出现，故本 rc 里该服务
+# 保持 disabled（见其 .rc），这里在 post-fs 里等节点就绪再启动。
+# kmsg 打点用于串口日志（CDH-KM-V5-*）核对门控时序。
+on post-fs
+    write /sys/module/firmware_class/parameters/path /vendor/firmware_mnt/
+    start vendor.dlkm_loader
+    write /dev/kmsg "CDH-KM-V5-POSTFS\n"
+    wait /dev/hvc3 30
+    write /dev/kmsg "CDH-KM-V5-HVC3READY\n"
+    start vendor.keymint-default
+
+# Graphics
+on property:ro.vendor.graphics=mesa
+    setprop ro.hardware.egl mesa
+
+on property:ro.vendor.graphics=mesa_swrast
+    setprop ro.hardware.egl mesa
+    setprop ro.hardware.vulkan lvp
+    setprop ro.opengles.version 196610
+    setprop ro.surface_flinger.native_window_buffers_format 5
+    setprop vendor.mesa.android.no.kms.swrast true
+    setprop vendor.mesa.libgl.always.software true
+
+on property:ro.vendor.graphics=swiftshader
+    setprop ro.cpuvulkan.version 4202496
+    setprop ro.hardware.egl angle
+    setprop ro.hardware.vulkan pastel
+    setprop ro.opengles.version 196609
+    setprop ro.surface_flinger.native_window_buffers_format 5
+
+on early-boot && property:ro.boot.hwui_renderer=*
+    setprop debug.hwui.renderer ${ro.boot.hwui_renderer}
+
+on early-boot && property:ro.vendor.graphics.gpu=vkms
+    setprop ro.vendor.graphics ${ro.boot.graphics:-swiftshader}
+
+# Suspend blocker
+service suspend_blocker /vendor/bin/suspend_blocker
+    class early_hal # Start together with system_suspend HAL
+    group system
+    user root
+
+# VirtWifi
+service setup_wifi /vendor/bin/setup_wifi --interface=${ro.vendor.virtwifi.port}
+    override
+    disabled
+    oneshot
+    user root
+    group root
+
+on post-fs-data && property:ro.boot.wifi_impl=virt_wifi
+    start setup_wifi
+
+# Wi-Fi
+on early-boot
+    mkdir /data/vendor/wifi 0770 wifi wifi
+    mkdir /data/vendor/wifi/wpa 0770 wifi wifi
+    mkdir /data/vendor/wifi/wpa/sockets 0770 wifi wifi

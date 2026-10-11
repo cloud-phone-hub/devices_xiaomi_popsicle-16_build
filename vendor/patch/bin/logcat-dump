@@ -1,0 +1,4 @@
+#!/system/bin/sh
+# Continuously stream logcat to the serial console (appears in serial.log)
+# 带 events/crash 缓冲，捕获 system_server 被 kill/watchdog/ANR 的关键证据
+logcat -v threadtime -b main -b system -b events -b crash -b kernel > /dev/ttyAMA0 2>/dev/null

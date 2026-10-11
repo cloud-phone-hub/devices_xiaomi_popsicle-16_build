@@ -1,0 +1,9 @@
+<manifest version="1.0" type="device">
+  <!-- popsicle-16 收编的官方 IR HAL（android.hardware.ir-service.example，AIDL 示例实现）。
+       官方 /odm 声明 FEATURE_CONSUMER_IR；缺该服务时 system_server 的 ConsumerIrService
+       抛 RuntimeException("FEATURE_CONSUMER_IR present, but no IR HAL loaded!") 启动即死。 -->
+  <hal format="aidl">
+    <name>android.hardware.ir</name>
+    <fqname>IConsumerIr/default</fqname>
+  </hal>
+</manifest>

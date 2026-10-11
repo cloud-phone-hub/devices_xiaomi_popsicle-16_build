@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <privapp-permissions package="com.miui.home">
+        <permission name="android.permission.INPUT_CONSUMER"/>
+        <permission name="android.permission.INTERNAL_SYSTEM_WINDOW"/>
+        <permission name="android.permission.STATUS_BAR_SERVICE"/>
+    </privapp-permissions>
+</permissions>

@@ -1,0 +1,34 @@
+{
+  "schema": "cdh.popsicle-16.android15.vibrator.v1",
+  "device": "popsicle-16",
+  "androidMajor": 15,
+  "aidlVersion": 2,
+  "aospTag": "android-15.0.0_r36",
+  "source": "真机 Redmi Note 13 5G (OS3.0.9.0.VNQCNXM)：dumpsys vibrator_manager 的 Vibrators -> VibratorInfo 段",
+  "canonicalSource": "android.hardware.vibrator AIDL -> VibratorManagerService -> Vibrator/VibratorManager API",
+  "implementationLayer": "virtual-hal",
+  "serviceNames": [
+    "android.hardware.vibrator.IVibrator/default",
+    "android.hardware.vibrator.IVibratorManager/default"
+  ],
+  "packageManagerFeaturesAfterHAL": [],
+  "targets": {
+    "hasVibrator": true,
+    "hasAmplitudeControl": false,
+    "vibratorIds": [1],
+    "iVibratorCapability": 0,
+    "iVibratorManagerCapabilities": 0,
+    "supportedEffects": ["CLICK", "DOUBLE_CLICK", "TICK", "HEAVY_CLICK", "TEXTURE_TICK"],
+    "supportedPrimitives": [],
+    "supportedBraking": [],
+    "compositionDelayMax": 1000,
+    "compositionSizeMax": 256
+  },
+  "invariants": [
+    "真机 VibratorInfo.capabilitiesFlags = 0：既无 CAP_AMPLITUDE_CONTROL，也无 CAP_ON_CALLBACK/CAP_PERFORM_CALLBACK，故 setAmplitude 走 unsupported、on/perform 不触发回调。",
+    "真机 vibrator id = 1（MTK 惯例），IVibratorManager.getVibratorIds() 必须返回 [1]，getVibrator(1) 才返回实例。",
+    "真机 primitiveDelayMax = 1000 / compositionSizeMax = 256，故 getCompositionDelayMax/SizeMax 上报这两个上限。",
+    "本 HAL 是能力/接口虚拟服务：on/perform 立即成功（不驱动宿主振动，也不影响 guest 输入设备），不得宣称 amplitude control。",
+    "AIDA64/DevInfo 读 Vibrator.hasVibrator()、hasAmplitudeControl()、VibratorManager.getVibratorIds() 三条路径必须一致。"
+  ]
+}

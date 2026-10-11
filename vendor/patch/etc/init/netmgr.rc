@@ -1,0 +1,29 @@
+# popsicle-16 网络初始化（对齐真机 gold）：管理网卡留在主 netns（改名 mgmt0，
+# 10.0.2.15/24，无默认路由），/mnt/run/adb_net 指向 init 主 netns —— adbd（daemon
+# setns 后 exec）与 adb shell 因而都在主 netns，与真机一样能看到真实网卡；
+# 各服务以 u:r:pioneer:s0 运行（内核 permissive，无需逐条授权）；capabilities
+# NET_ADMIN SYS_ADMIN 供 ip link/addr 使用。
+#
+# note13 的 fingerprint 服务（ccmni 网卡形态对齐 MTK 真机）在 popsicle 不适用：
+# Qualcomm 真机数据口为 rmnet*，云机侧暂无对齐件，待设备事实确定后另行移植。
+service vendor.netmgr_setup /vendor/bin/netmgr_setup setup
+    class core
+    user root
+    group root shell
+    seclabel u:r:pioneer:s0
+    capabilities NET_ADMIN SYS_ADMIN
+    disabled
+    oneshot
+
+service vendor.netmgr_configure /vendor/bin/netmgr_setup configure
+    class core
+    user root
+    group root shell
+    seclabel u:r:pioneer:s0
+    capabilities NET_ADMIN SYS_ADMIN
+    disabled
+    oneshot
+
+on post-fs
+    exec_start vendor.netmgr_setup
+    exec_start vendor.netmgr_configure

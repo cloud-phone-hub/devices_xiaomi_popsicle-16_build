@@ -1,0 +1,17 @@
+# popsicle-16 收编的官方 IR（红外）HAL 服务。
+#
+# 官方 MIUI 由 /odm/etc/permissions/android.hardware.consumerir.xml 声明
+# FEATURE_CONSUMER_IR，而 SystemServer 的 ConsumerIrService 在特性存在却取不到
+# android.hardware.ir.IConsumerIr/default 时直接抛
+# "java.lang.RuntimeException: FEATURE_CONSUMER_IR present, but no IR HAL loaded!"
+# → system_server 启动即死、反复重启（实测 2026-10-09，boot_completed 永不置位）。
+#
+# lineage virtio vendor 只带策略（hal_ir_default / hal_ir_service_* / file_contexts 均在），
+# 没有服务进程；官方 vendor_a.img 内的 android.hardware.ir-service.example 是 AOSP AIDL
+# 示例实现（不驱动真实硬件，适合云机），故整件收编。
+service vendor.ir-default /vendor/bin/hw/android.hardware.ir-service.example
+    class hal
+    user system
+    group system
+    seclabel u:r:hal_ir_default:s0
+    interface aidl android.hardware.ir.IConsumerIr/default

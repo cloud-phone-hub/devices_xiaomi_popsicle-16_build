@@ -1,0 +1,24 @@
+{
+  "manifest": {
+    "schema": 2,
+    "purpose": "声明 roms/ 下支持的固件与关键镜像。build 条目为构建数据源：main.py --build-id 选中后导出 CDH_* 环境变量驱动各阶段脚本与 vendor 子构建；文件缺失或解析失败时脚本优雅降级为内置默认值。"
+  },
+  "device": {
+    "codename": "popsicle",
+    "name": "popsicle (SM8850)",
+    "board": "canoe"
+  },
+  "build": [
+    {
+      "build-id": "popsicle_images_OS3.0.319.0.WPBCNXM_20260824.0000.00_16.0_cn_9d8daa8b5b",
+      "android-version": "16.0.0",
+      "kernel-version": "6.12.23-android16-5-g75e9b1c7ae7c-abogki463945075-4k",
+      "version": "OS3.0.319.0.WPBCNXM",
+      "factory-zip": "popsicle_images_OS3.0.319.0.WPBCNXM_20260824.0000.00_16.0_cn_9d8daa8b5b.tgz",
+      "factory-dir": "popsicle_images_OS3.0.319.0.WPBCNXM_16.0",
+      "lineage-zip": "UTM-VM-lineage-23.2-20260922-UNOFFICIAL-virtio_arm64only.zip",
+      "lineage-dir": "lineage-23",
+      "lineage-version": "lineage-23.2"
+    }
+  ]
+}

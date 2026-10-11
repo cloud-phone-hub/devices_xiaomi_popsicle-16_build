@@ -1,0 +1,19 @@
+# headless 云机：跳过首次激活 + 显示/电源防呆（全程不注入按键）。
+# auto_provision 写设置（含重试等 SettingsProvider 就绪）；keep_awake 仅低频
+# dismiss-keyguard 兜底（已解锁时 no-op，无输入副作用）。
+service auto_provision /system/bin/sh /vendor/bin/setup_display.sh
+    class main
+    user root
+    group root
+    oneshot
+    seclabel u:r:pioneer:s0
+
+service keep_awake /system/bin/sh -c "while true; do cmd window dismiss-keyguard 2>/dev/null; sleep 30; done"
+    class main
+    user root
+    group root
+    seclabel u:r:pioneer:s0
+
+on property:sys.boot_completed=1
+    start auto_provision
+    start keep_awake

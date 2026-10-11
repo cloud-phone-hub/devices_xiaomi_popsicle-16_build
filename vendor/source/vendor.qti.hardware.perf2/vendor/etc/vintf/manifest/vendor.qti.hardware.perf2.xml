@@ -1,0 +1,9 @@
+<manifest version="1.0" type="device">
+  <!-- popsicle-16 收编的官方 QTI perf2 HAL。
+       官方 system 的 compatibility_matrix.device.xml 将其列为必需 HAL；缺失会让
+       BoostFramework 的连接调用永久阻塞、system_server 被 watchdog 杀（界面卡开机动画）。 -->
+  <hal format="aidl">
+    <name>vendor.qti.hardware.perf2</name>
+    <fqname>IPerf/default</fqname>
+  </hal>
+</manifest>

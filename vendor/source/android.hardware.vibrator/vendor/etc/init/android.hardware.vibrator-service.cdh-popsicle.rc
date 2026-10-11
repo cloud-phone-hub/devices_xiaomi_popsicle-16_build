@@ -1,0 +1,19 @@
+# popsicle-16 自研 vibrator HAL（虚拟 HAL）。
+#
+# lineage 底座没有 vibrator HAL：/vendor/bin/hw 无 vibrator 服务、vendor VINTF 也未声明
+# IVibrator/IVibratorManager，VibratorManagerService 的 Vibrators 段为空
+# （Vibrator.hasVibrator() = false、getVibratorIds() = []）。
+# 本服务接管 android.hardware.vibrator.IVibrator/default 与 IVibratorManager/default，
+# 按真机 VibratorInfo（config/vibrator.json）上报能力/效果/id；on/perform 仅即时成功，
+# 不驱动宿主振动（capabilitiesFlags = 0，不宣称 amplitude control）。
+service vendor.cdh_popsicle_vibrator /vendor/bin/hw/android.hardware.vibrator-service.cdh-popsicle
+    class hal
+    user system
+    group system
+    seclabel u:r:hal_vibrator_default:s0
+    interface aidl android.hardware.vibrator.IVibrator/default
+    interface aidl android.hardware.vibrator.IVibratorManager/default
+    disabled
+
+on post-fs-data
+    start vendor.cdh_popsicle_vibrator

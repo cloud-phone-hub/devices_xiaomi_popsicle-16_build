@@ -1,0 +1,29 @@
+<!--
+    Input:
+        external/minigbm-upstream/cros_gralloc/mapper_stablec/mapper.minigbm_upstream.xml
+        （字节取自 lineage-23 基座 vendor_a.img 的 /etc/vintf/manifest/同名文件）
+
+    为什么 gold 基座要自己再声明一次：libui 的 gralloc mapper 加载口径是
+    `mapper/<后缀>`，后缀经 binder 向 minigbm allocator 服务取得（实测
+    IAllocator::getIMapperLibrarySuffix 答 "minigbm_upstream"），随后
+    AServiceManager_isDeclared("mapper/minigbm_upstream") 必须为真，它才会去
+    dlopen /vendor/lib64/hw/mapper.minigbm_upstream.so；否则直接
+    "Gralloc5: Failed to load mapper.minigbm_upstream.so" -> HIDL 4/3/2 全部
+    "mapper x.x is not supported"（无 hwservicemanager）->
+    LOG_ALWAYS_FATAL "gralloc-mapper is missing"（实例 35 实测 SF SIGABRT 环）。
+
+    这份声明在 lineage 基座是 vendor 构建装到 /vendor/etc/vintf/manifest/ 的；
+    gold 基座的 /vendor 是官方 erofs 原件，没有这个 inode。内核的 dir 规则
+    /vendor/etc/vintf/manifest -> /mnt/vendor/etc/vintf/manifest 会**整目录**接管
+    （opendir 走重定向后的 inode，getdents 因此能看到本文件），无需新增单文件规则。
+
+    format="native" 是 VINTF 的 passthrough（同进程 .so）表达；与官方
+    mapper.qti.xml 的 @5.0/qti 是不同 FqInstance，不触发 libvintf 的
+    "Conflicting FqInstance"（那条会让整份 device manifest 解析失败）。
+-->
+<manifest version="9.0" type="device">
+    <hal format="native">
+        <name>mapper</name>
+        <fqname>@5.0/minigbm_upstream</fqname>
+    </hal>
+</manifest>
