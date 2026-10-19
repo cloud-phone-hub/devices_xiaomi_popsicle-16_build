@@ -99,6 +99,38 @@ IR_VSC_LINES = [
     "android.hardware.ir.IConsumerIr             u:object_r:hal_ir_service:s0",
 ]
 
+# Audio：自研 AIDL 服务（build/vendor/source/android.hardware.audio，代码承自
+# note13-5G-15 / oriole-16）注册 core.IModule/{default,primary,r_submix} +
+# core.IConfig/default + effect.IFactory/default。gold 基座的 hal_audio_default 是
+# 给 QTI ADSP 音频写的，实测（out/tmp/patch/stage/root/etc/selinux/vendor_sepolicy.cil，
+# 全量 allow 扫描）它对 plat 公共类型 **零** 授权：
+#   - 没有一条 tcontext=hal_audio_service_202504 的 service_manager add/find
+#     （80 条 hal_audio_default allow 里只有 vndbinder/servicemanager binder 和
+#      QTI 自有 vendor 服务）→ 自研进程注册不出来，框架继续死等；
+#   - 没有 /dev/ashmem（FMQ）与 /dev/snd（ALSA 输出）的 chr_file 授权
+#     —— 真机走 ADSP 音轨，从不碰这两个节点。
+# 客机实测（实例 44 root）：/dev/snd/{controlC0,pcmC0D0p,timer} = audio_device:s0、
+# /dev/ashmem = ashmem_device:s0，两段都必要。
+# neverallow 核对：官方 plat 里唯一一条 default_android_service 的 neverallow 是
+# `(neverallow base_typeattr_239 default_android_service (service_manager (add find list)))`，
+# 其中 base_typeattr_239 = (all)；它约束的是**未版本化的原名**，而 mapping/202504.cil
+# 只有 `(typeattributeset default_android_service_202504 (default_android_service))`
+# 一类填充、没有任何影子版 neverallow → 对影子类型授权不触 neverallow。
+# v1/v2/v3 三个独立标记沿用 note13 的分段做法：增量追加、重复构建幂等。
+AUDIO_MARKER = ";; cdh popsicle-16: audio-hal"
+AUDIO_V2_MARKER = ";; cdh popsicle-16: audio-hal-v2-ashmem"
+AUDIO_V3_MARKER = ";; cdh popsicle-16: audio-hal-v3-alsa"
+# /system/etc/selinux/plat_service_contexts 逐实例覆盖 IModule/{default,r_submix}、
+# IConfig/default、effect.IFactory/default，**没有 IModule/primary**（客机实测）。
+# 这里按 note13 已实测的口径补接口级三行；它是否命中取决于 servicemanager 的
+# contexts 查表（启动时一次性加载，vendor 侧未必生效），所以下面 audio_hal_cil 里
+# 同时给未映射兜底类型 default_android_service_{vers} 补了 add/find。
+AUDIO_VSC_LINES = [
+    "android.hardware.audio.core.IModule         u:object_r:hal_audio_service:s0",
+    "android.hardware.audio.core.IConfig         u:object_r:hal_audio_service:s0",
+    "android.hardware.audio.effect.IFactory      u:object_r:hal_audio_service:s0",
+]
+
 # FRP 承载块设备：MIUI 16 pdb 按 ro.frp.pst 打开 FRP 分区，本盘把它软链到未使用的
 # misc(vda3)（见 build/vendor/patch/etc/init/cph_frp_symlink.rc）。平台策略只给
 # system_server 授了 frp_block_device，而该节点的类型是 misc_block_device：
@@ -192,6 +224,41 @@ GRAPHICS_MARKER = ";; cdh popsicle-16: virtio-graphics"
 DRM_CHR_PERMS = "ioctl read write getattr lock append map open watch watch_reads".split()
 PROP_READ_PERMS = "getattr open read map".split()
 
+# virtio-gpu 的 **sysfs 子树**定标（实例 59，2026-10-15 实测）。/dev/dri 三个节点连
+# 目录本身都已 gpu_device（dri_label_rewrite），Enforcing 下仍黑：SF(940) 与 launcher
+# 各自带 llvmpipe-0..7，logcat 仍有 90 条 `W EGL-MAIN: Failed to open any DRM device`；
+# 同一批进程里 minigbm 却能 `Loaded driver virtgpu_virgl on path /dev/dri/renderD128`
+# —— 说明节点能开，卡在 mesa/libdrm **枚举** DRM 的那一步：libdrm 无 udev，走 sysfs
+# 读 /sys/dev/char/<maj>:<min>/uevent 与 /sys/class/drm/*/device 来认总线/设备。
+# 与 oriole-16（实例 17，基座 lineage）同路径对照，唯一的差别就是标签：
+#     oriole   /sys/devices/pci0000:00/0000:00:01.0/drm/renderD128 = sysfs_gpu
+#              /sys/dev/char/226:128（跟随软链）                    = sysfs_gpu
+#     popsicle 同上两处                                             = sysfs
+# 权限侧的缺口由此暴露：gold plat 给 appdomain/SF/bootanim 的是
+#     (allow base_typeattr_257 sysfs_gpu (file (ioctl read getattr lock map open watch
+#         watch_reads)))   base_typeattr_257 = appdomain - isolated_app_all
+# 而对泛用 sysfs 只有写侧 neverallow、**没有任何读授权** —— 也就是说 sysfs_gpu 这个
+# 标签本身就是 app 能读 GPU sysfs 的唯一通道，标签不对=读不到=枚举不出 DRM 设备。
+# 口径来源：lineage 的 vendor 策略里就有这条 genfscon（oriole 基座
+# vendor_sepolicy.cil:61 `(genfscon sysfs "/devices/pci0000:00/0000:00:01.0" ...
+# sysfs_gpu)`，另有 :79/:80/:81 三个槽位与 /devices/platform/vkms），本盘 virtio-gpu
+# 实测就落在 01.0（renderD128 的 realpath 一致），照抄这一条即可。
+# dir/lnk_file 的 grant 也是 lineage vendor 段补的（gold plat 只有 sysfs_gpu:file，
+# dir 侧仅 virtual_camera 有）：列目录、跟随 /sys/class/drm 下的软链都要 dir/lnk_file。
+# neverallow 核对：官方 plat 与 sysfs_gpu 相关的 neverallow 为 0 条（grep 全文），
+# sysfs 侧只有 write neverallow（base_typeattr_269）与 sysfs_net 的 app 读禁令，
+# 本段全是 r_*_perms，不触线。
+DRM_SYSFS_GPU_GENFS = ('(genfscon sysfs "/devices/pci0000:00/0000:00:01.0"'
+                       ' (u object_r sysfs_gpu ((s0) (s0))))\n')
+SYSFS_GPU_DIR_PERMS = "ioctl read getattr lock open watch watch_reads search".split()
+SYSFS_GPU_FILE_PERMS = "ioctl read getattr lock map open watch watch_reads".split()
+# vendor 自有/公共属性名不带版本后缀（appdomain 在 plat_pub_versioned 里就是
+# `(typeattribute appdomain)`，hal_graphics_* 是 gold vendor 类型），其余走 _{vers} 影子。
+DRM_SYSFS_GPU_DOMAINS_PLAT = ("surfaceflinger", "bootanim", "gpuservice", "system_server")
+DRM_SYSFS_GPU_DOMAINS_UNVERSIONED = (
+    "appdomain", "hal_graphics_allocator_default", "hal_graphics_composer_default")
+
+
 # RenderEngine 的 JIT 可执行内存（实例 37，2026-10-11，build 40 实测）。
 # mapper 链修好后 SF 第一次跑到创建上下文/画首帧，随即在 RenderEngine 线程 SIGSEGV：
 #   Fatal signal 11 (SIGSEGV), code 2 (SEGV_ACCERR), fault addr 0x7c5100d000
@@ -257,6 +324,53 @@ GRAPHICS_FC_LINES = [
     r"/(vendor|system/vendor)/lib(64)?/android\.hardware\.graphics\.allocator"
     r"@4\.0\.so u:object_r:same_process_hal_file:s0",
 ]
+
+# /dev/dri/* 标签口径（实例 54/55，2026-10-15 实测）。gold（MIUI 官方 vendor）的
+# vendor_file_contexts 把三个 DRM 节点逐条点名成 graphics_device（本盘 1172/1242/1243
+# 行：card0、controlD64、renderD128），因为真机 GLES 走 /dev/kgsl-3d0，DRM 只服务显示；
+# AOSP/lineage 口径 /dev/dri/* 是 gpu_device（oriole 基座 251/254/262 行）。云机的 GLES
+# 是 mesa(libEGL) 在**进程内** open renderD128，标签不对就开不了：
+#     W EGL-MAIN: Failed to open any DRM device
+# mesa 打不到 DRM 就静默回落 llvmpipe（客机 CPU 渲染），宿主侧 scanout 纹理永远收不到
+# 帧、VNC 全黑。实测对照：
+#   · 实例 54：guest 每个 GL 进程都有该报错 + 24~40 个 llvmpipe 线程 + VNC 纯色帧；
+#     运行期 chcon 两节点成 gpu_device 后 SF 的该报错消失（暴露下一条
+#     `failed to create DRI image from FD`），证实标签就是闸门。
+#   · oriole-16（基座为 lineage）：该报错 0 条、gpu_device 拒绝 0 条、VNC 出完整画面。
+# 权限侧不用加：plat 有
+#   (allow base_typeattr_257 gpu_device (chr_file (ioctl read write getattr lock append
+#       map open watch watch_reads)))       base_typeattr_257 = appdomain - isolated_app_all
+# 即全部 app 域 + surfaceflinger/system_server/mediaswcodec/gpuservice/bootanim 等
+# 本就随 plat 拿到 gpu_device；graphics_device 侧的 neverallow 只约束
+# isolated_app/shell/untrusted_app（改标签反而把它们放行）。
+# 为什么不能用 ueventd 规则第 5 列定标（试过，实例 55 失败）：Android 16 的 ueventd
+# 已删除 file_contexts 列，只认 no_fnm_pathname ——
+#   ueventd.rc: 680: invalid option 'u:object_r:gpu_device:s0', only no_fnm_pathname
+# 故只能改这张表本身（gold 字节在此文件上已由 KEYMINT/GRAPHICS 段改写，非 verbatim）。
+DRI_LABEL_FROM = b"u:object_r:graphics_device:s0"
+DRI_LABEL_TO = b"u:object_r:gpu_device:s0"
+
+# /dev/dri **目录**本身也要定标（实例 56，2026-10-15 实测）。节点改成 gpu_device 后
+# 画面仍黑：SF/每个 GL 进程照旧起 llvmpipe 线程（/proc/<sf>/task = llvmpipe-0..7），
+# VNC 仍纯色帧；而 setenforce 0 + 重启后该报错归零、launcher 无 llvmpipe 线程
+# => 还有一个 dontaudit（所以 logcat 里看不到）的 enforcing 拒绝。dmesg 抓到了：
+#   avc: denied { read } for  scontext=u:r:platform_app:s0:c512,c768
+#        tcontext=u:object_r:device:s0 tclass=dir permissive=0  app=com.android.systemui
+#   （×159）
+# mesa 枚举 DRM 走 drmGetDevices2()，要先 **列目录** /dev/dri 再逐个 open 节点；
+# 目录拿不到 read 就打不开 DRM → 静默回落 llvmpipe。gold 的 vendor_file_contexts 没有
+# /dev/dri 目录表项，devtmpfs 建的目录继承父目录标签 = device；plat 只给
+# (allow domain device:dir (search))，device:dir read 只给了 crosvm/hal_camera/
+# device_as_webcam/slideshow/system_server —— 都不含 appdomain/surfaceflinger。
+# lineage 口径把目录点名成 gpu_device（本盘 oriole 基座 262 行 `/dev/dri  gpu_device`），
+# 实测 oriole-16 实例 17：`ls -ldZ /dev/dri` = u:object_r:gpu_device:s0（同机制生效），
+# 且 plat 给 appdomain/SF 的 gpu_device:dir 里带 read/open/search。
+# 机制：ueventd 建节点时会对路径逐级 MakeDirector + selinux_android_restorecon，
+# restorecon 读的正是这张 vendor_file_contexts（ueventd.rc 里没有标签列，见上）。
+# 追加的是目录字面量（不是 /dev/dri/.*）：libselinux 判据 = 非通配前缀最长者胜、
+# 同长度时字面量胜过正则，与既有三条节点行不冲突。gold plat 无 neverallow 约束
+# device:dir/gpu_device:dir 的这段（platdiff：lineage-only 14 条、gold-only 0 条）。
+DRI_DIR_LABEL_LINE = b"/dev/dri\t\tu:object_r:gpu_device:s0"
 
 # gralloc mapper 的 passthrough 服务名映射（实例 35，2026-10-11，build 35 实测）。
 # libui 拿到后缀后经 servicemanager 查 `mapper/<后缀>` 的声明，本盘该名字在 gold 的
@@ -646,6 +760,59 @@ def ir_hal_cil(vers: str) -> str:
     )
 
 
+def audio_hal_cil(vers: str) -> str:
+    """audio AIDL HAL 注册段（承自 note13-5G-15）：service_manager add/find。
+
+    自研服务以 hal_audio_default 域注册 core.IModule/{default,primary,r_submix} 与
+    IConfig/default、effect.IFactory/default。gold 基座对 hal_audio_default 零
+    hal_audio_service 授权（判据见 AUDIO_MARKER 注释），缺 add 则注册被拒、框架
+    按 VINTF 认定存在而死等 -> MIUI AudioService 在 system_server 主线程上同步等
+    binder -> Watchdog 71s SIGABRT 重启循环。
+    default_android_service_{vers} 那两条是 contexts 映射未生效时的兜底：未映射的
+    AIDL 服务名落 default_android_service，注册方需 add、audioserver 需 find，
+    少一条就是 getService 返回 null（note13 实例实测 avc denied {find}）。
+    """
+    return (
+        f"{AUDIO_MARKER}: allow audio HAL service add/find\n"
+        + _allow("hal_audio_default", f"hal_audio_service_{vers}",
+                 "service_manager", ["add", "find"])
+        + _allow("hal_audio_default", f"default_android_service_{vers}",
+                 "service_manager", ["add"])
+        + _allow(f"audioserver_{vers}", f"default_android_service_{vers}",
+                 "service_manager", ["find"])
+        + _allow(f"audioserver_{vers}", f"hal_audio_service_{vers}",
+                 "service_manager", ["find"])
+    )
+
+
+def audio_hal_cil_v2(vers: str) -> str:
+    """audio v2 增量段：/dev/ashmem（FMQ）。
+
+    自研 IModule 的 StreamDescriptor 走 AidlMessageQueue，必须 open /dev/ashmem；
+    被拒则 fd=-1 -> mmap EBADF -> framework 侧 openOutput 失败（note13 实例 59 实测
+    avc denied {open} hal_audio_default ashmem_device chr_file）。
+    """
+    return (
+        f"{AUDIO_V2_MARKER}: allow audio HAL FMQ /dev/ashmem\n"
+        + _allow("hal_audio_default", f"ashmem_device_{vers}", "chr_file",
+                 "ioctl read write getattr map open".split())
+    )
+
+
+def audio_hal_cil_v3(vers: str) -> str:
+    """audio v3 增量段：/dev/snd（QEMU 声卡）。
+
+    ModuleImpl 用原生 ALSA ioctl/write 直连 /dev/snd/pcmC0D0p，把 AudioFlinger 的
+    burst 背压锚到真实声卡时钟（否则播放时钟偏快、在线视频倍速快进）；节点类型
+    audio_device（客机实测 /dev/snd/* 全为该类型），plat 公共类型按影子引。
+    """
+    return (
+        f"{AUDIO_V3_MARKER}: allow audio HAL /dev/snd (QEMU 声卡)\n"
+        + _allow("hal_audio_default", f"audio_device_{vers}", "chr_file",
+                 "ioctl read write getattr map open".split())
+    )
+
+
 def frp_pdb_cil(vers: str) -> str:
     """FRP 承载块设备段：system_server（pdb）读写 misc_block_device。
 
@@ -893,9 +1060,9 @@ def graphics_cil(vers: str) -> str:
     在 gold 基座是 **vendor 自有**类型（mapping/202504.cil 里没有它们的
     _{vers} 影子，plat_sepolicy.cil 全文零命中），故不带版本后缀；surfaceflinger /
     graphics_device / gpu_device / system_prop 是 plat 类型，必须走 _{vers} 影子。
-    gpu_device 一并授：AOSP 口径 /dev/dri/renderD* 是 gpu_device，gold 的
-    vendor_file_contexts 改成了 graphics_device，云机若哪天由 ueventd 规则先命中
-    plat 口径就会落到 gpu_device，两条都留着才不用为标签口径再跑一轮。
+    两个 DRM 类型都授：本文件现在由 dri_label_rewrite 把 gold 的 /dev/dri/* 改写成
+    AOSP/lineage 的 gpu_device 口径（判据见 DRI_LABEL_FROM 注释），但 hal 域仍可能被
+    其它 gold 表项带进 graphics_device，两条都留着就不必为标签口径再跑一轮。
     """
     return (
         f"{GRAPHICS_MARKER}: drm_hwcomposer / minigbm gralloc 授权\n"
@@ -913,13 +1080,23 @@ def graphics_cil(vers: str) -> str:
         # mesa llvmpipe JIT 的可执行页（判据见 RENDER_EXECMEM 注释）
         + _allow(f"surfaceflinger_{vers}", "self", "process", ["execmem"])
         + _allow(f"bootanim_{vers}", "self", "process", ["execmem"])
+        # virtio-gpu 的 sysfs 子树：mesa/libdrm 枚举 DRM 设备要读它（判据见
+        # DRM_SYSFS_GPU_GENFS 注释）
+        + DRM_SYSFS_GPU_GENFS
+        + "".join(
+            _allow(dom, f"sysfs_gpu_{vers}", "dir", list(SYSFS_GPU_DIR_PERMS))
+            + _allow(dom, f"sysfs_gpu_{vers}", "file", list(SYSFS_GPU_FILE_PERMS))
+            + _allow(dom, f"sysfs_gpu_{vers}", "lnk_file", list(SYSFS_GPU_FILE_PERMS))
+            for dom in (list(DRM_SYSFS_GPU_DOMAINS_UNVERSIONED)
+                        + [f"{d}_{vers}" for d in DRM_SYSFS_GPU_DOMAINS_PLAT])
+        )
     )
 
 
 def hal_vsc_lines() -> list:
     """全部自研/收编 HAL 需要追加的 vendor_service_contexts 映射行。"""
-    return (list(VIBRATOR_VSC_LINES) + list(IR_VSC_LINES) + list(PERF_VSC_LINES)
-            + list(MAPPER_VSC_LINES))
+    return (list(VIBRATOR_VSC_LINES) + list(IR_VSC_LINES) + list(AUDIO_VSC_LINES)
+            + list(PERF_VSC_LINES) + list(MAPPER_VSC_LINES))
 
 
 def hal_vsc_missing(vsc: bytes) -> list:
@@ -949,6 +1126,12 @@ def hal_cil_chain(merged: str, vers: str, names=None) -> str:
         cil += vibrator_hal_cil(vers)
     if IR_MARKER not in merged:
         cil += ir_hal_cil(vers)
+    if AUDIO_MARKER not in merged:
+        cil += audio_hal_cil(vers)
+    if AUDIO_V2_MARKER not in merged:
+        cil += audio_hal_cil_v2(vers)
+    if AUDIO_V3_MARKER not in merged:
+        cil += audio_hal_cil_v3(vers)
     if FRP_MARKER not in merged:
         cil += frp_pdb_cil(vers)
     if PERF_MARKER not in merged:
@@ -966,6 +1149,30 @@ def hal_cil_chain(merged: str, vers: str, names=None) -> str:
     if GRAPHICS_MARKER not in merged:
         cil += graphics_cil(vers)
     return cil
+
+
+def dri_label_rewrite(vfc: bytes):
+    """把 vendor_file_contexts 里 /dev/dri 的标签口径改成 lineage 的 gpu_device。
+
+    两件事：1) 就地改写三条节点行的 graphics_device（不追加同名行）；
+    2) 补 /dev/dri **目录**字面量（gold 没有该行，目录留 device -> app/SF 列不了目录，
+    mesa 打不开 DRM）。判据与实测见 DRI_LABEL_FROM / DRI_DIR_LABEL_LINE 注释。
+    返回 (新字节, 命中行数)。
+    """
+    out = []
+    hit = 0
+    has_dir = False
+    for line in vfc.split(b"\n"):
+        if line.startswith(b"/dev/dri/") and DRI_LABEL_FROM in line:
+            line = line.replace(DRI_LABEL_FROM, DRI_LABEL_TO)
+            hit += 1
+        if line.split(b"\t")[0].split(b" ")[0] == b"/dev/dri":
+            has_dir = True
+        out.append(line)
+    if not has_dir:
+        out.append(DRI_DIR_LABEL_LINE)
+        hit += 1
+    return b"\n".join(out), hit
 
 
 def patch_commands(work_img, tmp_dir=None) -> list:
@@ -1043,6 +1250,9 @@ def patch_commands(work_img, tmp_dir=None) -> list:
     if vfc is None:
         print(f"[err] 读不到 {VFC}")
         sys.exit(1)
+    vfc, dri_hit = dri_label_rewrite(vfc)
+    if dri_hit:
+        print(f"[ok] vendor_file_contexts {dri_hit} 条 /dev/dri(含目录) -> gpu_device")
     fc_blob = b""
     if b"u:object_r:keymaster_device:s0" in vfc:
         print("[ok] vendor_file_contexts 已含 keymaster_device 标签，跳过")
@@ -1055,7 +1265,7 @@ def patch_commands(work_img, tmp_dir=None) -> list:
         fc_blob += ("\n" + "\n".join(GRAPHICS_FC_LINES) + "\n").encode("utf-8")
         print(f"[ok] vendor_file_contexts 追加 {len(GRAPHICS_FC_LINES) - 1} 条 "
               "same_process_hal_file 标签")
-    if fc_blob:
+    if fc_blob or dri_hit:
         tmp = os.path.join(tmp_dir, "vendor_file_contexts")
         with open(tmp, "wb") as f:
             f.write(vfc + fc_blob)

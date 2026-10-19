@@ -1,0 +1,23 @@
+# 止住 vendor.camera-provider 崩溃环（实例 46，2026-10-14 实测）。
+#
+# 崩因逐条：provider 静态构造期 com.xiaomi.camdfx.so 的 CameraDFX::InitTombstoneFile()
+# 调 std::filesystem::create_directories("/data/vendor/camera")，目录不存在、且父目录
+# /data/vendor 是 drwxrwx--x root:root（vendor_data_file），provider 以 uid 1047
+# (cameraserver) 无写权 → 抛 filesystem_error → SIGABRT。
+#   Abort message: '... in create_directories: Permission denied ["/data/vendor/camera"]'
+# 每次开机 ~26s 起连续 4 次退出，命中 init 的
+#   process with updatable components 'vendor.camera-provider' exited 4 times in 4 minutes
+# → sys.init.updatable_crashing=1 → /system/etc/init/flags_health_check.rc:11 拉起
+#   flags_health_check UPDATABLE_CRASHING → system_server 发 sys.powerctl='reboot,RescueParty'，
+# 实测 9 次重启死循环。
+#
+# 官方基座里没有任何 rc 建这个目录（grep /system*//vendor///odm/ 的 init rc 仅
+# init.miui.cameraopt.rc 提到 /data/vendor/camera，且只在 simpleperf 触发段用、不建目录）
+# —— 真机上该目录由相机 HAL 首次 openCamera 时以 cameraserver 身份现建，云机无人调用相机，
+# camdfx 却在进程启动即建 tombstone 目录，故抢先在 post-fs-data 建出来。
+#
+# 归属口径：uid/gid = cameraserver（provider 的 user/group），权限 0770（同 /data/vendor
+# 下 dataqti、location 等厂商相机的既有约定）。init 的 mkdir 会自动 restorecon，落到
+# plat_file_contexts 声明的 vendor_camera_data_file 标签，与 camdfx 后续写文件一致。
+on post-fs-data
+    mkdir /data/vendor/camera 0770 cameraserver cameraserver

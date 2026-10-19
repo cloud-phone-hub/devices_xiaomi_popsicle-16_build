@@ -233,6 +233,151 @@ GOLD_PRUNES = (
     # /sys/bus/i2c/drivers/cs40l26/... 的 chown/chmod —— 云机无 ADSP/snd_card/cs40l26
     # 节点，整文件删无实际损失。
     "/etc/init/audiohalservice_qti.rc",
+    # ---------------------------------------------------------------------------
+    # 无对应硬件的厂商常驻件：整文件摘 rc（实例 46，2026-10-14 实测）。
+    #
+    # 为什么这一批必须摘：它们不是"注册失败"而是**进程级崩溃循环**，且都被 init 判为
+    # updatable components —— 任一件在 4 分钟窗口内退 4 次就置
+    # sys.init.updatable_crashing=1，走 flags_health_check UPDATABLE_CRASHING →
+    # MIUI RescueParty（RescuePartyPlus 逐级升到 reboot）→ system_server 发
+    # sys.powerctl='reboot,RescueParty'，实测 9 次重启死循环，boot 永远收敛不了。
+    # 逐个取证（客机 logcat -b crash / qemu.log 的 init 死亡行）：
+    #   tftp_server      exit 255   —— QSEE TFTP/RFS 服务，对端是 modem；且
+    #                                  avc: denied { dac_override dac_read_search } for
+    #                                  comm="tftp_server" tclass=capability（官方策略里
+    #                                  它也拿不到这两条，本就是靠 root uid 跑的）
+    #   shsusrd          signal 11  —— /system/vendor/bin/shsusrd（Secure Hypervisor
+    #                                  User Space Router），依赖 QSEE；伴
+    #                                  avc: denied { write } tcontext=property_socket
+    #   minetd           exit 255   —— MiNet 内核网络增强守护进程，依赖 MTK/QTI 私有
+    #                                  netlink 家族，VM 内核里没有
+    #   qesdk-secmanager signal 31  —— SIGSYS：seccomp 杀掉（vendor 策略的 seccomp 白名单
+    #                                  与 6.12 内核 syscall 集不匹配），无 ADSP/QTEE 后端
+    #   cdsprpcd         exit 114   —— FastRPC，`ls /dev/cdsprpc* /dev/adsprpc*
+    #   audioadsprpcd    exit 114      /dev/fastrpc*` 在客机上全部 No such file
+    #   adsprpcd         exit 114
+    #   qcrilNrd(qcrild/2/3) signal 6 —— RIL 后端是 modem QMI；本盘无 modem，每 ~15s
+    #                                  abort 一次（crash buffer 里 >>> /vendor/bin/hw/qcrilNrd <<<）
+    #   tee-supplicant   exit 1     —— OP-TEE 用户态，`/dev/tee*` 不存在；它的 rc 在
+    #                                  /odm/etc/init（不是整目录接管区，摘不了文件），
+    #                                  改摘**二进制**：service 段是 disabled +
+    #                                  `on firmware_mounts_complete → start`，exec 期
+    #                                  ENOENT 只会留下一条
+    #                                  "Could not start service ... Cannot find"
+    #                                  （update_verifier 先例同款），不计入退出次数、
+    #                                  也不会 5s 一轮重启；而它 rc 的 `on fs` 段还挂着
+    #                                  /mnt/vendor/persist 的 restorecon/chown/chmod，
+    #                                  整文件屏蔽会连坐 —— 屏蔽二进制零连带。
+    #
+    # 连带损失逐条评估（摘 rc = 该文件的 `on *` 动作一并消失）：
+    #   tftp.rc          只有 on post-fs-data 建 /data/vendor/pddump（modem panic dump，
+    #                    VM 无生产者）—— 不补。
+    #   shsusrd.rc       建 /data/vendor/shsusr 与 /dev/socket/shsusrd、写一个空 log；
+    #                    消费者只有 shsusrd 自己（persist.vendor.data.shsusr_load 门）—— 不补。
+    #   qesdk-secmanager.rc / cdsprpc / adsprpc / audio-adsprpc：纯 service 段
+    #                    （audio-adsprpc 多一条 on early-init start）—— 无连带。
+    #   qcrilNrd.rc      `on boot mkdir /dev/socket/qcrild`（只有 qcrild 自己用）+
+    #                    sku 门（tuna/kera）的 dsds_to_ss 属性设置 +
+    #                    `on early-init && ro.baseband=apq → ro.radio.noril=yes`，
+    #                    本盘 sku=canoe、ro.baseband 为空，三条都不触发 —— 无连带。
+    #   minetd.rc        **有真损失**：`on boot` 写 tcp_rmem/tcp_wmem 是通用的网络缓冲
+    #                    放大，与 minetd 本身无关 → 那两条 write 搬进 CDH 自产的
+    #                    cph_tcp_mem_tuning.rc，其余不补。
+    "/etc/init/vendor.qti.tftp.rc",
+    "/etc/init/shsusrd.rc",
+    "/etc/init/minetd.rc",
+    "/etc/init/qesdk-secmanager.rc",
+    "/etc/init/vendor.qti.cdsprpc-service.rc",
+    "/etc/init/vendor.qti.adsprpc-guestos-service.rc",
+    "/etc/init/vendor.qti.audio-adsprpc-service.rc",
+    "/etc/init/qcrilNrd.rc",
+    # ---------------------------------------------------------------------------
+    # QTI/MIUI 相机 provider：整文件摘 rc + 一并摘掉它 rc 里声明的 5 条接口
+    # （实例 47，build 49，2026-10-14 实测）。它是上面那批之后**唯一**还在触发
+    # RescueParty 的件：`init: process with updatable components 'vendor.camera-provider'
+    # exited 4 times before boot completed`（logcat 行 ×N）→ 同一份日志内 6 次
+    # `Linux version` + 4 次 `reboot,RescueParty`。
+    # 崩溃点（crash buffer 里 4 帧、无 Abort message 的 SIGABRT/SI_TKILL，每 ~5s 一轮）：
+    #   #01 CamX::SettingsManagerImpl::LoadCamxSettingsOps()+376
+    #   #02 CamX::SettingsManagerImpl::Initialize(StaticSettings*, LogOverrideSettings*)+456
+    #       /vendor/lib64/libcamxsettingsmanager.so
+    # 取证口径：(1) 全 log 无 CANNOT LINK / dlopen 失败，库本身加载正常，是 CamX
+    # **自己 CAMX_EXIT**；(2) 这一步在 CamX 生命周期的最开头（加载按 SoC 选定的
+    # settings-ops 表），还没走到 V4L2/ISP/ICP 节点，所以补设备节点或目录都到不了
+    # 下一层 —— 实例 46 的 camdfx `/data/vendor/camera` abort 已由 cph_camera_data_dir.rc
+    # 解决，崩溃点因此从"缺目录"推进到"缺相机 SoC 的 settings 表"，已是硬件边界。
+    # (3) 对照 3a-16/oriole-16 的口径：云机的相机一律不暴露厂商实现。
+    # 为什么声明必须与 rc 同时摘（soundtrigger3 教训 #25 的推广）：rc 的 `interface aidl`
+    # 行与 GOLD_PRUNES 里的片段是两套独立来源，只删片段的话 manifest 仍含这些
+    # FQName → CameraService/camera middleware 对 ICameraProvider/* 走 lazy start，
+    # servicemanager 反复 `Could not find ...` 等一个永不注册的服务。
+    # 连带损失评估：qti rc 除 service 段只有 `on boot` 对
+    # /sys/module/camera/parameters/{cam_event_inject,xm_cam_dev_probe_skip_switch,
+    # xm_cam_dev_probe_skip_camera_id} 的 chown/chmod 和 /sys/power/wake_{lock,unlock}
+    # 的 chmod —— 云机内核无 camera SoC 模块（这些 sysfs 节点不存在，chown 本就失败），
+    # wake_lock/wake_unlock 的 0666 对云机无意义（电源由宿主管）。
+    # 顺带摘掉 MIUI 虚拟相机的 external provider rc（disabled，仅由
+    # `on property:vendor.camera.extprovider.start=1` 拉起，无生产者），保持
+    # manifest 与 init 两个视图一致。
+    "/etc/init/vendor.qti.camera.provider-service_64.rc",
+    "/etc/init/android.hardware.camera.provider-V1-external-service.rc",
+    "/etc/vintf/manifest/vendor.qti.camera.provider.xml",
+    "/etc/vintf/manifest/android.hardware.camera.provider.external.xml",
+    "/etc/vintf/manifest/vendor.qti.camera.offlinecamera-impl.xml",
+    "/etc/vintf/manifest/vendor.xiaomi.camera.aon-impl.xml",
+    "/etc/vintf/manifest/vendor.xiaomi.hardware.quickcamera.xml",
+    # ---------------------------------------------------------------------------
+    # QTI 蓝牙 AIDL HAL：摘 rc + 摘 IBluetoothHci 声明（实例 48，build 50，
+    # 2026-10-14 实测）。相机那条止住之后，它成了下一个 RescueParty 触发件：
+    #   [  131.794630] init: process with updatable components
+    #                  'vendor.bluetooth-aidl-qti' exited 4 times in 4 minutes
+    #   → Reboot start, reason: reboot,RescueParty（同一份 qemu.log：2 次内核启动、1 次 rescue）
+    # 失败形状（不是"注册失败"，是**线程爆炸到自杀**）：客机上
+    #   E bluetooth_transport_properties: failed to open bt device error = (No such file or directory)
+    #   E bluetooth_transport_properties: isCpsupported: unable to dev node /dev/btfmcodec_dev
+    # 之后它并不退出，而是在 `delayedThreadCreation` 的重试里**每轮新建一个线程**，
+    # 单进程 tid 涨到 2.3 万+，直到建线程失败：
+    #   F libc: shadow stack read-write mprotect(0x45d2c9c000, 16384) failed: Out of memory
+    #   Abort message: 同上   #08 std::__1::thread::thread<void(&)(),0>  → terminate → SIGABRT
+    # 一次开机内这条 F libc 出现 2925 次（全部来自该 HAL 的 3 个 pid：715/15551/23735…），
+    # 8192MB 的客机并没有全局内存耗尽（dmesg 无 oom-killer/页分配失败），是它自己把
+    # 进程级资源打穿 —— 与"缺硬件就注册不出来的懒加载 HAL"是两类问题。
+    # rc 只有 service 段（class hal、无 on 触发动作、无 interface 行、无 socket），
+    # 整文件删零连带。声明侧只摘 android.hardware.bluetooth/IBluetoothHci/default：
+    # BT 栈（packages/modules/Bluetooth）按声明口径解析它，留着声明会让客户端等一个
+    # 永不出现的 provider；其余 QTI 蓝牙扩展声明（IFmHci/IBluetoothSar/IBtTpi/
+    # IBluetoothLmpEvent/IBluetoothFinder/IBluetoothChannelSounding/IBtAVsProvider/
+    # IXpanProvider）**不动** —— 它们没有 rc 的 interface 行、本就只能由这个 provider
+    # 进程运行时注册，且与 IQHDC/PeripheralManager/IFace/ISecureElement 等既有的
+    # "声明在、实现无"现状同口径，不构成新的阻塞面。
+    "/etc/init/android.hardware.bluetooth@aidl-service-qti-debug.rc",
+    "/etc/vintf/manifest/bluetooth_hci.xml",
+    # ---------------------------------------------------------------------------
+    # QTI SecretKeeper AIDL HAL：摘 rc + 摘 ISecretkeeper 声明（实例 50，build 52，
+    # 2026-10-14 实测）。相机（#30）与蓝牙止住、MiSound/效果引擎的属性包（#31）生效后，
+    # 它是同一份 qemu.log 里**唯一**的 RescueParty 触发件（35 行 updatable 全是它）：
+    #   [  458.458367] init: process with updatable components
+    #                  'vendor.secretkeeper' exited 4 times in 4 minutes
+    #   → Reboot start, reason: reboot,RescueParty
+    # 失败形状（与蓝牙的线程爆炸不同，这里是**按期自杀的固定重试**）：客机上
+    #   E qti-secretkeeper-hal: trusted_app_loader::raw: Could not find TZ Client Env object, will retry.
+    # 以 ~50ms 一轮重试约 50s 后主动退出：
+    #   init: Service 'vendor.secretkeeper' (pid 7999) exited with status 1
+    # rc 无 `disabled`/`oneshot`/`critical`（class hal、user nobody、group drmrpc），
+    # init 按重启策略无限拉起 → 一次开机内 207 次启动 / 203 次 exit status 1，
+    # 每凑满 4 次/4 分钟就报一次 updatable_crashing。根因是它靠 TrustZone
+    # （QTEE/trusted_app_loader）装载 TA，云机无 TZ；同族的厂商 gatekeeper 在同一份
+    # log 里报的就是同一句 `Trusted app loader operation failed due to:
+    # ClientEnvNotAvailable(-1)`（只是它不退出，所以没被计入）。
+    # 为什么整文件删零连带：rc 只有 service 段，没有任何 `on` 动作（目录/socket/权限全无）。
+    # 为什么不需要替代实现：全 log 对 secretkeeper 的 servicemanager 侧引用为
+    # **0 次**（Found / Could not find 'aidl/android.hardware.security.secretkeeper' 均无），
+    # 框架 SecretKeeperService 只被 on-device personalization（odsign）与端到端备份用到，
+    # 不在开机关键路径上；lineage 基座也没有 secretkeeper APEX 可搬（gatekeeper 有
+    # nonsecure APEX，secretkeeper 没有），所以只能取消声明。
+    # 对照口径：3a-16 / oriole-16 同样不向云机暴露任何 TZ 支撑的厂商 HAL。
+    "/etc/init/android.hardware.security.secretkeeper-service-qti.rc",
+    "/etc/vintf/manifest/android.hardware.security.secretkeeper-service-qti.xml",
 )
 
 # 图形栈：路径名用厂商 soname，字节用 CDH 后端（Phase 1 的已知偏差，见
@@ -373,6 +518,17 @@ GOLD_RELABEL = tuple(sorted(
 #   动作队列（引导死循环）。bootctrl 由 /apex 搬来的 lineage 件提供，本项留待实测决定去留。
 BLOCKED = (
     "/system/bin/update_verifier",
+    # tee-supplicant（OP-TEE 用户态，/odm/bin/tee-supplicant）：客机上 /dev/tee*、
+    # /dev/teepriv* 全部不存在，service 起来即 exit 1，5s 一轮 —— 被 init 判为
+    # updatable components 后退 4 次触发 RescueParty 重启（实例 46 实测，
+    # "process with updatable components 'tee-supplicant' exited 4 times"）。
+    # 它的 rc 在 /odm/etc/init/tee-supplicant.rc，而 /odm/etc/init 不在整目录接管区
+    # （GOLD_DIRS 只有 vendor 侧五目录），摘不掉文件；该 rc 的 `on fs` 段还承担
+    # /mnt/vendor/persist 的 restorecon/chown/chmod 与 mitee 目录创建，屏蔽整文件有连带。
+    # 所以只屏蔽**二进制**：service 段是 `disabled` + `on firmware_mounts_complete`
+    # 里 `start`，exec 期 ENOENT 只留一条 "Could not start service ... Cannot find"
+    # （update_verifier 同口径），不计退出次数、不进入 5s 重启环。
+    "/odm/bin/tee-supplicant",
 )
 
 # gold 基座下**解除**此前"指向不存在以屏蔽"的项：官方 vendor 策略与官方 odm 策略

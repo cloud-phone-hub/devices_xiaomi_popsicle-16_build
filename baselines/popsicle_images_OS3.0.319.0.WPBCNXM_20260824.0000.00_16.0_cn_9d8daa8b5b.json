@@ -757,11 +757,11 @@
       ],
       [
         "ro.vendor.audio.dolby.dax.support",
-        "true"
+        "false"
       ],
       [
         "ro.vendor.audio.dolby.surround.enable",
-        "true"
+        "false"
       ],
       [
         "persist.vendor.audio.misound.disable",
@@ -773,11 +773,7 @@
       ],
       [
         "vendor.audio.dolby.control.support",
-        "true"
-      ],
-      [
-        "ro.vendor.audio.soundfx.type",
-        "mi"
+        "false"
       ],
       [
         "ro.vendor.audio.sfx.earadj",
@@ -857,7 +853,7 @@
       ],
       [
         "ro.vendor.audio.fweffect",
-        "true"
+        "false"
       ],
       [
         "ro.vendor.audio.multiroute",
@@ -1390,9 +1386,23 @@
       [
         "dalvik.vm.dex2oat64.enabled",
         "true"
+      ],
+      [
+        "ro.hwui.use_vulkan",
+        "false"
+      ],
+      [
+        "vendor.audio.effect_policy.support",
+        "false"
+      ],
+      [
+        "vendor.tablet2multitouch.device_names",
+        "QEMU QEMU USB Tablet,QEMU Virtio Tablet"
       ]
     ],
-    "build-prop-unsets": [],
+    "build-prop-unsets": [
+      "ro.vendor.audio.soundfx.type"
+    ],
     "selinux-labels": {
       "bin/daemon": "u:object_r:pioneer_exec:s0",
       "bin/logcat-dump": "u:object_r:system_file:s0",
@@ -1456,9 +1466,15 @@
       "etc/audio_policy_engine_configuration.xml": "u:object_r:vendor_configs_file:s0",
       "etc/audio_policy_engine_product_strategies.xml": "u:object_r:vendor_configs_file:s0",
       "etc/audio_policy_engine_stream_volumes.xml": "u:object_r:vendor_configs_file:s0",
-      "etc/audio_policy_engine_default_stream_volumes.xml": "u:object_r:vendor_configs_file:s0"
+      "etc/audio_policy_engine_default_stream_volumes.xml": "u:object_r:vendor_configs_file:s0",
+      "etc/init/cph_camera_data_dir.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/init/cph_tcp_mem_tuning.rc": "u:object_r:vendor_configs_file:s0",
+      "etc/init/cph_disable_preread.rc": "u:object_r:vendor_configs_file:s0",
+      "bin/tablet2multitouch": "u:object_r:pioneer_exec:s0",
+      "lib64/libtablet2multitouch.so": "u:object_r:vendor_file:s0",
+      "etc/init/tablet2multitouch.rc": "u:object_r:vendor_configs_file:s0"
     },
-    "note": "build-prop-sets 逐条取自官方 vendor_a.img /build.prop（Xiaomi mivendor_sm8850 通用 vendor 身份，Android16/SDK36），仅剔除图形栈选择键（ro.hardware.egl/vulkan、ro.opengles.version、ro.hwui.use_vulkan、ro.gfx.driver.*、vendor.gralloc.*、vendor.display.*、debug.sf.*、debug.egl.*、debug.mdpcomp.*）——云机图形走 virtio（lineage 基座/init.virt.rc 决定）。例外新增三件图形选择键 ro.hardware.egl=mesa / ro.hardware.vulkan=virtio / ro.hardware.gralloc=minigbm，值即 init.qcom.rc:65-68 + init.virt.rc:45 在 mesa+virtio_gpu 路径上要 setprop 的同值，只是提前到 build.prop：该 rc 链由 /vendor/bin/virtgpu_detect（early-boot 才 exec，且自身被 avc 拒读 system_prop 拖慢）触发，实测 logcat 08:00:12.185 才处理成 setprop，而 zygote64 的 ZygoteInit.preload -> zygote_preload_graphics -> eglGetDisplay 在 08:00:12.168 已放弃，libEGL 只好回落第三顺位 ro.board.platform（本盘该值被官方 gold 件顶成 canoe，基座本是 virt，而 vendor 树内只有 libEGL_*_mesa.so、无 Adreno 件）-> LOG_ALWAYS_FATAL \"couldn't find an OpenGL ES implementation\" -> zygote SIGABRT（实例 16 实测 2026-10-10）。按 note13 机制成立：ro.* 是 set-once，build.prop 在 init property_init 阶段加载，早于 rc 的 setprop，故本表胜出（见 note13 android.hardware.gpu/config/gpu.json 的 properties-note）。例外新增：ro.vendor.boot_security_patch 非官方件，Cuttlefish Remote KeyMint 初始化第 3 步 ConfigureBootPatchlevel 以 std::stoi(getProperty(...)) 直读该属性、无空值兜底（缺属性 → std::invalid_argument → SIGABRT，note13 实测根因），值与 ro.vendor.build.security_patch 同口径。例外新增 ro.vendor.qti.soc_name=canoe：gold 基座下 /vendor 是官方 vendor_a 原件，而官方 /vendor/etc/vintf/ 只有 manifest_canoe.xml / manifest_alor.xml + manifest/ 片段目录，**没有** manifest.xml——多 SKU 盘的基座 manifest 由 libvintf 按 ro.boot.product.vendor.sku 选（实测本盘 /system/lib64/libvintf.so 同时含字符串 ro.boot.product.vendor.sku、/vendor/etc/vintf/、manifest_，即拼 /vendor/etc/vintf/manifest_<sku>.xml），该属性由官方 /vendor/etc/init/init.qti.qcv.rc 的 early-init 行 setprop ro.boot.product.vendor.sku ${ro.vendor.qti.soc_name} 给出，而 ro.vendor.qti.soc_name 又由官方 /vendor/bin/init.qti.qcv.sh 从 /sys/devices/soc0/soc_id 反推（canoe=660/661/704）——云机无 QTI socinfo，soc_id 为空 → 脚本 if 链整段失败 → soc_name/sku 皆空 → libvintf 回落 /vendor/etc/vintf/manifest.xml（无）→ legacy /vendor/manifest.xml（无）→ servicemanager「VINTF parse error: Cannot read /vendor/manifest.xml」×48422、NULL VINTF MANIFEST → keymint-strongbox/secure_element SIGABRT、keystore2 崩、BootMonitor 每 1248s 整机重启（实例 18 实测 2026-10-10）。故只补这一个真机本就该有的属性，让官方 rc 链路自己把 sku 设上：不改厂商任何字节、不新增内核重定向规则，且设备 manifest 用官方 manifest_canoe.xml 原件（含 ISecureElement/eSE1、ISlaAIDLService、IMiNetAIDLService、IMiPowerHalAIDLService、IMiwillAIDLService 五条仅在该文件里声明的 HAL，与真机口径一致）。selinux-labels 为 vendor/patch 注入文件的 security.selinux 标签（键 = 注入树内相对路径），注入时按此回填，标签缺失即报错退出。"
+    "note": "build-prop-sets 逐条取自官方 vendor_a.img /build.prop（Xiaomi mivendor_sm8850 通用 vendor 身份，Android16/SDK36），仅剔除图形栈选择键（ro.hardware.egl/vulkan、ro.opengles.version、ro.hwui.use_vulkan、ro.gfx.driver.*、vendor.gralloc.*、vendor.display.*、debug.sf.*、debug.egl.*、debug.mdpcomp.*）——云机图形走 virtio（lineage 基座/init.virt.rc 决定）。例外新增三件图形选择键 ro.hardware.egl=mesa / ro.hardware.vulkan=virtio / ro.hardware.gralloc=minigbm，值即 init.qcom.rc:65-68 + init.virt.rc:45 在 mesa+virtio_gpu 路径上要 setprop 的同值，只是提前到 build.prop：该 rc 链由 /vendor/bin/virtgpu_detect（early-boot 才 exec，且自身被 avc 拒读 system_prop 拖慢）触发，实测 logcat 08:00:12.185 才处理成 setprop，而 zygote64 的 ZygoteInit.preload -> zygote_preload_graphics -> eglGetDisplay 在 08:00:12.168 已放弃，libEGL 只好回落第三顺位 ro.board.platform（本盘该值被官方 gold 件顶成 canoe，基座本是 virt，而 vendor 树内只有 libEGL_*_mesa.so、无 Adreno 件）-> LOG_ALWAYS_FATAL \"couldn't find an OpenGL ES implementation\" -> zygote SIGABRT（实例 16 实测 2026-10-10）。按 note13 机制成立：ro.* 是 set-once，build.prop 在 init property_init 阶段加载，早于 rc 的 setprop，故本表胜出（见 note13 android.hardware.gpu/config/gpu.json 的 properties-note）。例外新增：ro.vendor.boot_security_patch 非官方件，Cuttlefish Remote KeyMint 初始化第 3 步 ConfigureBootPatchlevel 以 std::stoi(getProperty(...)) 直读该属性、无空值兜底（缺属性 → std::invalid_argument → SIGABRT，note13 实测根因），值与 ro.vendor.build.security_patch 同口径。例外新增 ro.vendor.qti.soc_name=canoe：gold 基座下 /vendor 是官方 vendor_a 原件，而官方 /vendor/etc/vintf/ 只有 manifest_canoe.xml / manifest_alor.xml + manifest/ 片段目录，**没有** manifest.xml——多 SKU 盘的基座 manifest 由 libvintf 按 ro.boot.product.vendor.sku 选（实测本盘 /system/lib64/libvintf.so 同时含字符串 ro.boot.product.vendor.sku、/vendor/etc/vintf/、manifest_，即拼 /vendor/etc/vintf/manifest_<sku>.xml），该属性由官方 /vendor/etc/init/init.qti.qcv.rc 的 early-init 行 setprop ro.boot.product.vendor.sku ${ro.vendor.qti.soc_name} 给出，而 ro.vendor.qti.soc_name 又由官方 /vendor/bin/init.qti.qcv.sh 从 /sys/devices/soc0/soc_id 反推（canoe=660/661/704）——云机无 QTI socinfo，soc_id 为空 → 脚本 if 链整段失败 → soc_name/sku 皆空 → libvintf 回落 /vendor/etc/vintf/manifest.xml（无）→ legacy /vendor/manifest.xml（无）→ servicemanager「VINTF parse error: Cannot read /vendor/manifest.xml」×48422、NULL VINTF MANIFEST → keymint-strongbox/secure_element SIGABRT、keystore2 崩、BootMonitor 每 1248s 整机重启（实例 18 实测 2026-10-10）。故只补这一个真机本就该有的属性，让官方 rc 链路自己把 sku 设上：不改厂商任何字节、不新增内核重定向规则，且设备 manifest 用官方 manifest_canoe.xml 原件（含 ISecureElement/eSE1、ISlaAIDLService、IMiNetAIDLService、IMiPowerHalAIDLService、IMiwillAIDLService 五条仅在该文件里声明的 HAL，与真机口径一致）。selinux-labels 为 vendor/patch 注入文件的 security.selinux 标签（键 = 注入树内相对路径），注入时按此回填，标签缺失即报错退出。 CDH 云机偏差（非官方值）：ro.hwui.use_vulkan 官方 /vendor/build.prop 第 45 行是 true，这里覆盖成 false。机理实测（实例 46，2026-10-14）：置 true 时每个 app 进程的 RenderThread::preload() 会 requireVkContext() → VulkanManager::preinitDevice() → Vk_EnumeratePhysicalDevices 在云机图形栈上数到 0 个设备（/vendor/lib64/hw/vulkan.adreno.so 是 GRAPHICS_ALIAS 换进来的 mesa virtio(Venus) 字节，宿主 QEMU/UTM 没有 venus/gfxstream 后端）→ LOG_ALWAYS_FATAL_IF(!gpuCount) → SIGABRT：com.miui.home 25 次、com.android.systemui 17 次，tombstone 唯一行是 Abort message: 'Assertion failed: !gpuCount'，栈为 #04 libhwui VulkanManager::<lambda> #05 libc++ __call_once #06 RenderThread::requireVkContext #07 RenderProxy::preload()::$_0。也就是说桌面/系统 UI 从进程起来那一刻就被渲染线程打死，#26「黑屏」与它同源。改成 false 后 HWUI 走 SkiaGL（与本项目已验证的 mesa llvmpipe GLES 链一致），渲染线程不再碰 Vulkan。口径同源：lineage-23 virtio vendor_a 的 /build.prop 就把这一行留成空值（ro.hwui.use_vulkan=），即 lineage 基座为同一套 virtio 图形栈做的同样取舍。ro.hardware.vulkan=adreno 保持官方原值不动——它是 hw/vulkan.<ro.hardware.vulkan>.so 的取件名，改它等于换 GRAPHICS_ALIAS 的接管路径。\n\n[2026-10-14 效果引擎族属性（build 51 → 实例 49 实测）]\nsystem_server 主线程 Java 致命环：FATAL EXCEPTION: main / Process: system_server，\nCaused by: java.lang.RuntimeException: Cannot initialize effect engine for type:\nec7178ec-e5e1-4432-a3f4-4657e6795210 Error: -3\n  at android.media.audiofx.AudioEffect.<init>(AudioEffect.java:555)\n  at android.media.audiofx.MiSound.<init>(MiSound.java:106)\n  at android.media.audiofx.presenter.BaseEffectPresenter.getMiSoundInstanceSafely(:205)\n  at android.media.audiofx.presenter.BaseEffectPresenter.setMiSoundEnableSafely(:219)\n  at android.media.audiofx.presenter.QcomEffectPresenter.setDolbyActive(:36)\n  at android.media.audiofx.presenter.BaseEffectPresenter.setDefaultEffect(:708)\n  ... QcomEffectPresenter.onDeviceChange(:193) <- AudioEffectCenter.onDeviceChanged(:272)\n  <- ReceiverDispatcher <- Looper <- com.android.server.SystemServer.main\n栈顶是 SystemServer.main ⇒ 异常未捕获、system_server 直接死；init 随后看到\nService 'zygote' received signal 9 from uid 0 pid <zygote 自杀>，\n再累积成 \"process with updatable components 'zygote' exited 4 times in 4 minutes\"\n→ 第三个 RescueParty 触发件（同一份 qemu.log：3 次内核启动、2 次 rescue）。\n成因：CDH 自研 effect HAL（承自 note13）**不实现任何效果** ——\nbuild/vendor/source/android.hardware.audio/src/EffectFactoryImpl.cpp:27 注释\n“无支持的效果实现，任何 UUID 都非法”，listEffectDescriptors 返回空；\n而官方 /vendor/build.prop 声明了整套 Dolby/MiSound 能力，MIUI 框架按声明去建效果引擎，\n建不出来就抛。\n运行期已排除的门控（实例 49 setprop 后立即复测，崩溃继续）：\n  persist.vendor.audio.effectimplenter  dolby → \"\"    （misound 计数 2 → 26）\n  vendor.audio.dolby.control.support     true → false  （28 → 38）\n  vendor.audio.effect_policy.support     true → false  （64 → 74）\n运行期可写的键能覆盖的门都已试完，剩下的只有 ro.* 一批 ⇒ 本轮把这一族整体关掉：\nro.vendor.audio.soundfx.type 取消定义（值 \"mi\" 是 MiSound 实现选择器），\ndolby.dax.support / dolby.surround.enable / fweffect / effect_policy.support 置 false。\n预期副作用：设置里的杜比/MiSound 音效项消失；不影响出声（音频走已实测的自研 HAL）。\n\n[2026-10-15 触控链（实例 61 实测）]\n现象：画面正常但控制台点什么都没反应。根因不在 guest 而在 QEMU 的事件分发：\nui/input.c qemu_input_find_handler(mask, con, match_all=false) 对 ABS 只投给**第一个**\nmask 匹配的 handler；virtio-tablet 的 mask 含 ABS，virtio-multitouch 的 mask 是\nBTN|MTT（不含 ABS），而 web/VNC 控制台的指针事件是绝对坐标 —— 于是 event1\n（multitouch）永远收不到点击。另一条路也不通：MIUI 的 InputReader 即便读到\n/vendor/usr/idc/QEMU Virtio Tablet.idc（touch.deviceType=touchScreen）仍把 tablet\n判成 Sources: KEYBOARD|MOUSE、Touch Input Mapper = POINTER（libinput.so 里确有\n/vendor/usr/ 前缀字符串，说明文件被读了，是判定没采纳）。\n修法=承自 lineage/oriole-16 的 tablet2multitouch：读 tablet 的 ABS 流，经 /dev/uinput\n造一个真 MT 设备（名 tablet2multitouch，idc virt_tablet2multitouch.idc）。\n本表新增 vendor.tablet2multitouch.device_names 就是它的设备名白名单（二进制\nproperty_get 读，空值即打 \"Device names property not defined\" 退出）。属性落\nvendor_default_prop（gold vendor_property_contexts 无 vendor.tablet2multitouch. 前缀，\n也不打算加：gold_props 模块把该表按官方 gold 全量替换，加前缀就多一个真机没有的\n属性区文件），init 对该区有 set 授权（实测 vendor.power.pasr.enabled 同区且生效）。\n不搬 lineage 的 ro.minui.blacklist_input_devices：那是给 minui/charger 屏蔽 tablet 的，\n与转换器无关，留着只是多一处真机没有的属性。\n实测口径（实例 61，手工跑 /data/local/tmp 的同款二进制）：event5 出现且\ngetevent -p 为 TOUCHSCREEN/DIRECT（X 0..1199.963 / Y 0..2607.920），raw-RFB 在\n(990,2290) 点一下即 topResumedActivity=com.android.camera/.Camera。"
   },
   "vendor-dlkm": {
     "baseline-build-prop": {

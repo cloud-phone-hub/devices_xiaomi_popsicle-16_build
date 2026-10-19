@@ -25,7 +25,8 @@ MODE_FILE = 0o100644      # 0x81a4
 # 可执行文件（staging 树），如 /vendor/bin/daemon
 MODE_EXEC = 0o100755      # 0x8175
 # patch 树内需可执行位的脚本（init service 直接 exec，如 bin/netmgr_setup）
-PATCH_EXEC = {"bin/netmgr_setup", "bin/dlkm_loader_mainline"}
+PATCH_EXEC = {"bin/netmgr_setup", "bin/dlkm_loader_mainline",
+              "bin/tablet2multitouch"}
 # staging 树内需要常规数据模式（0644）的文件：staging 默认按可执行产物打 0755，
 # 但落盘的配置文件/共享库带可执行位会与基座原模式不一致（rc/xml 是配置文件：
 # 真机 /vendor/etc/init/*.rc、/vendor/etc/vintf/manifest/*.xml 均为 0644）。

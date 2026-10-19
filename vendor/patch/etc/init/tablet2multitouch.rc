@@ -1,0 +1,38 @@
+# popsicle-16：触控链 —— 把 QEMU 平板的绝对坐标流转成真正的多点触摸设备。
+#
+# 为什么必须有它（实例 61，2026-10-15 实测）：宿主侧 VNC/web 控制台的指针事件是
+# **绝对坐标**，QEMU 的 ui/input.c `qemu_input_find_handler(mask, con, match_all)`
+# 对 ABS 只投递给**第一个** mask 匹配的 handler —— virtio-tablet 的 mask 含 ABS，
+# virtio-multitouch 的 mask 是 BTN|MTT（不含 ABS），于是 event1（multitouch）
+# 从头到尾收不到任何点击；而 MIUI 的 InputReader 即便读到
+# /vendor/usr/idc/QEMU Virtio Tablet.idc（touch.deviceType=touchScreen）仍把 tablet
+# 判成 `Sources: KEYBOARD|MOUSE`（Touch Input Mapper = POINTER）—— 两条路都断，
+# 表现就是"画面正常、点什么都没反应"。
+# 修法与 lineage/oriole-16/3a-16 同源：tablet2multitouch 读 tablet 的 ABS 流，经
+# /dev/uinput 造一个真 MT 设备（名字 tablet2multitouch，idc
+# virt_tablet2multitouch.idc），InputReader 判为 TOUCHSCREEN/DIRECT。
+# 实测口径：转换器跑起来后 event5 出现，`getevent` 有 ABS_MT_POSITION_X/Y +
+# BTN_TOUCH 帧，raw-RFB 在 (990,2290) 点一下即拉起 com.android.camera/.Camera。
+#
+# 域用 pioneer（内核 permissive，见 sepolicy.pioneer_cil）：二进制要 open
+# /dev/input/event*（input_device）、/dev/uinput（uhid_device），并读
+# vendor.tablet2multitouch.device_names。不自建 tablet2multitouch 域的理由：那要
+# 新增属性类型 + 往 vendor_property_contexts 加 `vendor.tablet2multitouch.` 前缀，
+# 而本盘该表是**按官方 gold 表全量替换**的（gold_props 模块），加前缀就多出一个
+# 真机没有的属性区文件；该属性落 vendor_default_prop，init 有 set 授权（实测
+# vendor.power.pasr.enabled 同样落该区并已生效）。
+#
+# disabled + boot_completed 触发（不用 lineage 的 class main 自启）：转换器按设备名
+# 找 /dev/input/event%d，找不到就打 "Device not found" 退出，而 oneshot 不会重试；
+# ueventd 冷启动建点与 class main 启动的先后没有保证，boot_completed 时输入子设备
+# 必然已就位。
+service vendor.tablet2multitouch /vendor/bin/tablet2multitouch
+    class main
+    user root
+    group root
+    seclabel u:r:pioneer:s0
+    oneshot
+    disabled
+
+on property:sys.boot_completed=1
+    start vendor.tablet2multitouch

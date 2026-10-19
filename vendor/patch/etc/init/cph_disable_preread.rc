@@ -1,0 +1,27 @@
+# 关掉 MIUI 的预读加速（iorapd），止住它的崩溃循环（实例 46，2026-10-14 实测）。
+#
+# iorapd 的 service 段在 /system_ext/etc/init/init.launch_boost.rc（class main，
+# user system / group root，SELinux 域 artd）。客机上它起来即 exit 1，5s 一轮，
+# 4 次后命中 "process with updatable components 'iorapd' exited 4 times" →
+# sys.init.updatable_crashing=1 → RescueParty 重启环（与 tee-supplicant/camera-provider
+# 同一条链，见 gold_tree.GOLD_PRUNES 上方取证）。
+#
+# 直接成因（客机 avc）：
+#   avc: denied { create } for comm="iorapd" anonclass=[io_uring]
+#        scontext=u:r:artd:s0 tcontext=u:r:artd:s0 tclass=anon_inode permissive=0
+# 授权路线在本盘不可走：artd 是**平台**域，官方策略是 system 侧 plat_sepolicy，
+# 而 vendor 侧 cil 无权给 plat 私有域补规则（plat 的 neverallow 也会挡住 io_uring）；
+# /system_ext 的 rc 与二进制又都在官方分区里、不经过本盘的重定向接管。
+#
+# 走 MIUI 自己留的开关：同一份 rc 里有
+#   on property:persist.sys.stability.PrereadEnable=false → stop iorapd
+#   on property:persist.sys.stability.PrereadEnable=true  → start iorapd
+# 客机实测该属性默认为 true、init.svc.iorapd=restarting。把它置 false 即用厂商
+# 自己的口径停掉整条预读链（预读依赖的是 io_uring + 真实 UFS 随机读特征，virtio-blk
+# 上即便跑起来也没有收益）。on init 早于 class_start main，stop 兜底写在
+# post-fs-data（属性已是 false 时 prop 触发器不会再跑一次）。
+on init
+    setprop persist.sys.stability.PrereadEnable false
+
+on post-fs-data
+    stop iorapd

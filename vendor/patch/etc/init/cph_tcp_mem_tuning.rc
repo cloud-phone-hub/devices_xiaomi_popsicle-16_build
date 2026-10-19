@@ -1,0 +1,15 @@
+# TCP 缓冲放大：从被摘除的厂商 minetd.rc 里搬出来的两条通用写入。
+#
+# 官方 /vendor/etc/init/minetd.rc 的 `on boot` 段除 service 段外只有这两条
+# /proc/sys 写入。minetd 本体依赖厂商私有 netlink 家族，云机内核里没有该家族、
+# 起来即 exit 255，且 4 次退出会触发 RescueParty 重启环（取证见
+# build/vendor/build/gold_tree.py 的 GOLD_PRUNES 段），所以那个 rc 整文件摘除；
+# 但这两条写入与 minetd 无关——它们把 TCP 收发缓冲上限抬到 16MB，正是本盘
+# ADB-over-TCP、frp 通道和 scrcpy 码率需要的口径，故在这里原样保留。
+#
+# 写 /proc/sys 需要 init 有对应的 system 侧授权，与官方 rc 完全同源（同样的
+# builtin、同样的路径、同样的时机），实测官方在客机上跑得通（minetd.rc 的
+# on boot 段此前每轮开机都执行过）。
+on boot
+    write /proc/sys/net/ipv4/tcp_rmem "524288 1048576 16777216"
+    write /proc/sys/net/ipv4/tcp_wmem "262144 524288 16777216"

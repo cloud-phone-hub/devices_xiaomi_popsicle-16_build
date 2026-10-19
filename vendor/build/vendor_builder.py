@@ -87,6 +87,22 @@ UEVENTD_FRP_MARKER = b"# cdh popsicle: FRP block device (MIUI pdb)"
 UEVENTD_KEYMINT_RULE = "/dev/hvc3\t\t0666\tsystem\tsystem"
 UEVENTD_KEYMINT_MARKER = b"# cdh popsicle: remote keymint channel /dev/hvc3"
 
+# /dev/dri 节点 DAC：与 oriole 基座 /vendor/etc/ueventd.rc:5-7 逐字同口径
+# （0666 system graphics）。gold 官方 ueventd.rc 无 /dev/dri 规则，节点落内核默认
+# 0600 root:root，mesa 打不开。
+# SELinux 标签**不在这里定**：Android 16 的 ueventd 已删除规则第 5 列（file_contexts
+# 列），实测实例 55 `logcat -s ueventd`：
+#   /vendor/etc/ueventd.rc: 680: invalid option 'u:object_r:gpu_device:s0',
+#                            only no_fnm_pathname is supported
+# 标签走 sepolicy.dri_label_rewrite 改写 gold vendor_file_contexts（口径与判据见该处）。
+# 节点名用通配而非字面量，QEMU virtio-gpu 的 card/render 编号随设备数漂移。
+UEVENTD_DRI_RULES = (
+    "/dev/dri/card*\t\t0666\tsystem\tgraphics",
+    "/dev/dri/renderD*\t0666\tsystem\tgraphics",
+    "/dev/dri/controlD*\t0666\tsystem\tgraphics",
+)
+UEVENTD_DRI_MARKER = b"# cdh popsicle: /dev/dri node permissions (mesa DRM open)"
+
 
 def ueventd_video_cmds(work_img, tmp_dir=None):
     """读回 /etc/ueventd.rc，追加所需规则（video / FRP / keymint，逐条幂等），返回 debugfs 命令。
@@ -104,8 +120,9 @@ def ueventd_video_cmds(work_img, tmp_dir=None):
     need_video = UEVENTD_VIDEO_MARKER not in data
     need_frp = UEVENTD_FRP_MARKER not in data
     need_keymint = UEVENTD_KEYMINT_MARKER not in data
-    if not need_video and not need_frp and not need_keymint:
-        print("[ok] ueventd.rc 已含 video/FRP/keymint 规则，跳过")
+    need_dri = UEVENTD_DRI_MARKER not in data
+    if not (need_video or need_frp or need_keymint or need_dri):
+        print("[ok] ueventd.rc 已含 video/FRP/keymint/dri 规则，跳过")
         return []
     rule = b""
     if need_video:
@@ -117,11 +134,14 @@ def ueventd_video_cmds(work_img, tmp_dir=None):
     if need_keymint:
         rule += b"\n" + UEVENTD_KEYMINT_MARKER + b"\n" + \
             UEVENTD_KEYMINT_RULE.encode() + b"\n"
+    if need_dri:
+        rule += b"\n" + UEVENTD_DRI_MARKER + b"\n" + \
+            "\n".join(UEVENTD_DRI_RULES).encode() + b"\n"
     tmp = os.path.join(tmp_dir, "ueventd.rc")
     with open(tmp, "wb") as f:
         f.write(data + rule)
     added = "+".join(n for n, need in (("video", need_video), ("FRP", need_frp),
-                                       ("keymint", need_keymint))
+                                       ("keymint", need_keymint), ("dri", need_dri))
                      if need)
     print(f"[ok] ueventd.rc 追加节点规则（{added}，幂等）")
     return [
